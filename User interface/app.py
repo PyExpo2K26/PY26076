@@ -66,7 +66,8 @@ def phase1_install():
 @app.route('/api/phase1/download-model', methods=['POST'])
 def phase1_download_model():
     try:
-        # Pull Llama3 model
+
+                # Pull Llama3 model
         subprocess.Popen([
             "ollama",
             "pull",
@@ -75,7 +76,7 @@ def phase1_download_model():
         return jsonify({"message": f"⏳ Downloading {CONFIG['model_name']}... This may take 10-45 minutes. You'll get a notification when done."})
     except Exception as e:
         return jsonify({"message": f"❌ Error: {str(e)}"})
-
+    
 @app.route('/api/phase1/ask', methods=['POST'])
 def phase1_ask():
     data = request.json
