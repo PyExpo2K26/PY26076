@@ -61,61 +61,59 @@ def save_to_json(user_text, venom_text):
         json.dump(data, file, indent=2, ensure_ascii=False)
 
 # --- Get AI-generated reply using HuggingFace Inference Router ---
-def get_free_inference_api(prompt):
-    """Use HuggingFace Inference Router with OpenAI-compatible format."""
+def get_free_inference_api(prompt, context_messages=None):
+    """Use HuggingFace Inference Router with History Support."""
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-Wait-For-Model": "true" # Extra header for stability
     }
+    
+    # 1. Build the message list starting with system prompt
+    messages = [{"role": "system", "content": "You are Infini Think, a helpful AI."}]
+    
+    # 2. Add historical context if it exists
+    if context_messages:
+        messages.extend(context_messages)
+        
+    # 3. Add the current user prompt
+    messages.append({"role": "user", "content": prompt})
     
     payload = {
         "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are Infini Think, a helpful and witty AI assistant. Keep responses concise and friendly."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
+        "messages": messages,
         "temperature": 0.7,
-        "max_tokens": 300
+        "max_tokens": 300,
+        "options": {"wait_for_model": True} # Critical for free tier
     }
     
     try:
+        # Increased timeout to 60s because free models can be slow to wake up
         response = requests.post(
             "https://router.huggingface.co/hf-inference/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=45
+            timeout=60 
         )
         
         if response.status_code == 200:
             result = response.json()
-            if "choices" in result and len(result["choices"]) > 0:
-                text = result["choices"][0].get("message", {}).get("content", "").strip()
-                if text:
-                    return text
-            else:
-                print(f"[DEBUG] Unexpected response format: {result}")
+            return result['choices'][0]['message']['content'].strip()
         else:
-            print(f"[ERROR] API Error {response.status_code}: {response.text[:200]}")
-        
-        return None
-    
+            print(f"[ERROR] API {response.status_code}: {response.text}")
+            return None
     except Exception as e:
-        print(f"[ERROR] API request failed: {str(e)}")
+        print(f"[ERROR] Request failed: {e}")
         return None
-
 # --- Fallback API ---
-def get_alt_inference_api(prompt):
-    """Alternative fallback API using a different model."""
-    headers = {
-        "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json"
-    }
+def get_infini_think_reply(prompt, context_messages):
+    # Pass the context into the API call now!
+    reply = get_free_inference_api(prompt, context_messages)
+    if reply:
+        return reply
+    
+    # Fallback logic remains the same
+    return get_alt_inference_api(prompt)
     
     payload = {
         "model": "HuggingFaceH4/zephyr-7b-beta",
