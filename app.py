@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import json
 import os
@@ -12,7 +12,7 @@ import edge_tts
 # from pydub import AudioSegment
 # from pydub.playback import play
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
 CORS(app)
 
 # --- CONFIG ---
@@ -107,6 +107,10 @@ def process_query(text):
     return cleaned_reply
 
 # --- API Routes ---
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
