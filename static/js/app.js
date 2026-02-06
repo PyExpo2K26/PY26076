@@ -67,15 +67,16 @@ async function sendMessage(event) {
         // Remove typing indicator
         removeTypingIndicator(typingId);
         
-        if (data.success) {
+        if (data.success && data.reply) {
             addMessage(data.reply, 'infini');
         } else {
-            addMessage('Error getting response. Try again.', 'error');
+            const errorMsg = data.error || 'Error getting response. Try again.';
+            addMessage(`⚠️ ${errorMsg}`, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
         removeTypingIndicator(typingId);
-        addMessage('Error getting response. Try again.', 'error');
+        addMessage('⚠️ Failed to connect to the server. Make sure Flask is running on http://localhost:5000', 'error');
     } finally {
         setLoading(false);
         inputField.focus();
