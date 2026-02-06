@@ -18,74 +18,55 @@ CORS(app)
 # --- CONFIG ---
 # Using free inference APIs (no API key needed)
 API_PROVIDER = "huggingface"  # Free inference API
-MODEL = "facebook/blenderbot-400M-distill"
+MODEL = "HuggingFaceH4/zephyr-7b-beta"
 VOICE = "en-US-GuyNeural"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
 
 # Add your token here
-HF_TOKEN = "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"# Add your token here
+HF_TOKEN = "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"
 
 def get_free_inference_api(prompt):
-    """Use HuggingFace free inference API with wait logic."""
+    """Use HuggingFace Inference Router API (chat completions format)."""
     try:
-        payload = {
-            "inputs": prompt,
-            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
-        }
         headers = {
             "Authorization": f"Bearer {HF_TOKEN}",
             "Content-Type": "application/json"
         }
         
-        response = requests.post(
-            f"https://api-inference.huggingface.co/models/{MODEL}",
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-        
-        result = response.json()
-        
-        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get("generated_text", "").strip()
-        
-        # If it returns a dict error (like rate limit)
-        print(f"[API Message] {result}")
-        return None
-    
-    except Exception as e:
-        print(f"[ERROR] Connection failed: {str(e)}")
-        return None
-
-def get_free_inference_api(prompt):
-    """Use HuggingFace free inference API with wait logic."""
-    try:
+        # Using the new HuggingFace Inference Router with chat completions format
         payload = {
-            "inputs": prompt,
-            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
-        }
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/json"
+            "model": MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are 'Infini Think', a helpful and witty AI assistant. Keep responses concise and friendly."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 300
         }
         
         response = requests.post(
-            f"https://api-inference.huggingface.co/models/{MODEL}",
+            "https://router.huggingface.co/hf-inference/v1/chat/completions",
             headers=headers,
             json=payload,
             timeout=30
         )
         
-        result = response.json()
+        if response.status_code == 200:
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                text = result["choices"][0].get("message", {}).get("content", "").strip()
+                if text:
+                    return text
+        else:
+            print(f"[API Message] Status {response.status_code}: {response.text[:200]}")
         
-        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get("generated_text", "").strip()
-        
-        # If it returns a dict error (like rate limit)
-        print(f"[API Message] {result}")
         return None
     
     except Exception as e:
@@ -124,7 +105,7 @@ def get_free_inference_api(prompt):
     
     except Exception as e:
         print(f"[ERROR] Connection failed: {str(e)}")
-        return None"
+        return None
 
 def get_free_inference_api(prompt):
     """Use HuggingFace free inference API with wait logic."""
@@ -217,64 +198,49 @@ def get_infini_think_reply(prompt, context_messages):
     print("[INFO] APIs failed, returning mock response")
     return None
 
-def get_free_inference_api(prompt):
-    """Use HuggingFace free inference API - BlenderBot."""
-    try:
-        payload = {"inputs": prompt}
-        headers = {"Content-Type": "application/json"}
-        
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
-            headers=headers,
-            json=payload,
-            timeout=20
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, dict) and "generated_text" in result:
-                text = result["generated_text"].strip()
-                if text and len(text) > 5:
-                    return text[:300]
-            elif isinstance(result, list) and len(result) > 0:
-                if isinstance(result[0], dict) and "generated_text" in result[0]:
-                    text = result[0]["generated_text"].strip()
-                    if text and len(text) > 5:
-                        return text[:300]
-    
-    except Exception as e:
-        print(f"[ERROR] HuggingFace BlenderBot failed: {str(e)}")
-    
-    return None
-
-
 def get_alt_inference_api(prompt):
-    """Alternative free inference API - DistilGPT2."""
+    """Alternative using HuggingFace Router for fallback."""
     try:
-        payload = {"inputs": prompt}
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "meta-llama/Llama-2-7b-chat-hf",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant. Keep responses concise."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 200
+        }
         
         response = requests.post(
-            "https://api-inference.huggingface.co/models/distilgpt2",
+            "https://router.huggingface.co/hf-inference/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=20
+            timeout=30
         )
         
         if response.status_code == 200:
             result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                text = result[0].get("generated_text", prompt).strip()
-                # Remove the input prompt if duplicated
-                if text.startswith(prompt):
-                    text = text[len(prompt):].strip()
-                if text and len(text) > 5:
-                    return text[:300]
+            if "choices" in result and len(result["choices"]) > 0:
+                text = result["choices"][0].get("message", {}).get("content", "").strip()
+                if text:
+                    return text
+        
+        return None
     
     except Exception as e:
-        print(f"[ERROR] DistilGPT2 API failed: {str(e)}")
-    
-    return None
+        print(f"[ERROR] Alternative API failed: {str(e)}")
+        return None
 
 # --- Process a single query ---
 def process_query(text):
