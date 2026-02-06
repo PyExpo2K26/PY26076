@@ -364,6 +364,7 @@ document.getElementById("starsToggle").addEventListener("change",function(){
         this.checked ? "block" : "none";
 });
 
+
 /* STARS */
 const starContainer=document.getElementById("star-container");
 for(let i=0;i<120;i++){
@@ -376,7 +377,6 @@ for(let i=0;i<120;i++){
     star.style.setProperty("--duration",(Math.random()*3+2)+"s");
     starContainer.appendChild(star);
 }
-
 </script>
 </body>
 </html>
