@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="Infini Think AI Assistant">
+    <title>Infini Think</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app">
+        <div class="container">
+            <header class="header">
+                <h1>🔥 Infini Think</h1>
+                <p>Your sarcastic multilingual AI assistant</p>
+            </header>
+
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    <div class="welcome">
+                        <h2>Welcome to Infini Think</h2>
+                        <p>Say something to get started!</p>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <form id="chat-form" onsubmit="sendMessage(event)">
+                        <input 
+                            type="text" 
+                            id="input" 
+                            placeholder="Type your message here..." 
+                            autocomplete="off"
+                            required
+                        >
+                        <button type="submit" id="send-btn">Send</button>
+                    </form>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

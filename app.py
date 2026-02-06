@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import json
 import os
@@ -6,21 +6,27 @@ import re
 import random
 import requests
 from datetime import datetime
-import asyncio
-import tempfile
-import edge_tts
-# from pydub import AudioSegment
-# from pydub.playback import play
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
 CORS(app)
 
 # --- CONFIG ---
-API_KEY = "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"
-MODEL = "anthropic/claude-3-haiku"
+API_PROVIDER = "huggingface"
+MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 VOICE = "en-US-GuyNeural"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
+
+# HuggingFace API Token
+HF_TOKEN = "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"
+
+# Mock responses for when API is unavailable
+MOCK_RESPONSES = [
+    "my brain is not braining right now",
+    "Infini Think here! That's interesting... 🔥",
+    "Aah, interesting indeed! Tell me more 👀",
+    "Ok, I need to improve to satisfy your queries.",
+]
 
 # --- Load previous chat context ---
 def load_context():
@@ -34,7 +40,7 @@ def load_context():
                     messages.append({"role": "assistant", "content": f"{item['infini_think']} (your earlier reply)"})
                 return messages
         except Exception as e:
-            print("[WARNING] Failed to load chat history:", str(e))
+            print(f"[WARNING] Failed to load chat history: {str(e)}")
     return []
 
 # --- Save chat history to file ---
@@ -54,73 +60,176 @@ def save_to_json(user_text, venom_text):
     with open(HISTORY_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2, ensure_ascii=False)
 
-# --- Get AI-generated reply from OpenRouter ---
-def get_infini_think_reply(prompt, context_messages):
+# --- Get AI-generated reply using HuggingFace Inference Router ---
+def get_free_inference_api(prompt):
+    """Use HuggingFace Inference Router with OpenAI-compatible format."""
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {HF_TOKEN}",
         "Content-Type": "application/json"
     }
-
-    # Add noise to avoid repeated responses
     
-    noise = f"(time: {datetime.now().strftime('%H:%M:%S')}, rand: {random.randint(1, 9999)})"
     payload = {
         "model": MODEL,
         "messages": [
             {
                 "role": "system",
-                "content": "You are 'Infini Think', a sarcastic multilingual Tamil-English AI assistant. Learn the user's tone and history. Speak with wit, sass, and roast. Keep replies short and funny."
+                "content": "You are Infini Think, a helpful and witty AI assistant. Keep responses concise and friendly."
             },
-            *context_messages,
-            {"role": "user", "content": f"{prompt} {noise}"}
-        ]
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 300
     }
+    
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=10)
+        response = requests.post(
+            "https://router.huggingface.co/hf-inference/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=45
+        )
+        
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                text = result["choices"][0].get("message", {}).get("content", "").strip()
+                if text:
+                    return text
+            else:
+                print(f"[DEBUG] Unexpected response format: {result}")
         else:
-            print("[ERROR] API Error:", response.status_code, response.text)
+            print(f"[ERROR] API Error {response.status_code}: {response.text[:200]}")
+        
+        return None
+    
     except Exception as e:
-        print("[ERROR] Request Failed:", str(e))
-        # Mock response for testing UI
-        responses = [
-            "Enna solraan da? 😎",
-            "Dei, edhuku innum pesara? 🙄",
-            "Infini Think here! That's interesting... 🔥",
-            "Aah, interesting indeed! Tell me more 👀",
-            "Haha, nice one! 😆",
-        ]
-        return random.choice(responses)
+        print(f"[ERROR] API request failed: {str(e)}")
+        return None
+
+# --- Fallback API ---
+def get_alt_inference_api(prompt):
+    """Alternative fallback API using a different model."""
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "HuggingFaceH4/zephyr-7b-beta",
+        "messages": [
+            {"role": "system", "content": "You are a helpful AI assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 250
+    }
+    
+    try:
+        response = requests.post(
+            "https://router.huggingface.co/hf-inference/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                text = result["choices"][0].get("message", {}).get("content", "").strip()
+                if text:
+                    return text
+        
+        return None
+    
+    except Exception as e:
+        print(f"[ERROR] Fallback API failed: {str(e)}")
+        return None
+
+# --- Get response from AI (with fallback) ---
+def get_infini_think_reply(prompt, context_messages):
+    """Get response from AI - tries primary API then fallback."""
+    # Try primary API
+    reply = get_free_inference_api(prompt)
+    if reply:
+        return reply
+    
+    # Try fallback API
+    print("[INFO] Primary API failed, trying fallback...")
+    reply = get_alt_inference_api(prompt)
+    if reply:
+        return reply
+    
+    print("[INFO] All APIs failed, returning mock response")
+    return None
 
 # --- Process a single query ---
 def process_query(text):
-    context = load_context()
-    reply = get_infini_think_reply(text, context)
-    
-    # Remove stage directions like *laughs*
-    cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
-    
-    # Save full reply
-    save_to_json(text, reply)
-    
-    return cleaned_reply
+    """Process a user query and return a safe response."""
+    try:
+        context = load_context()
+        reply = get_infini_think_reply(text, context)
+        
+        # Ensure reply is never None or empty
+        if not reply or not isinstance(reply, str):
+            reply = random.choice(MOCK_RESPONSES)
+        
+        # Clean the reply safely
+        try:
+            cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
+        except (TypeError, AttributeError):
+            cleaned_reply = reply
+        
+        # If cleaning removed everything, use original
+        if not cleaned_reply:
+            cleaned_reply = reply
+        
+        # Save to history
+        save_to_json(text, reply)
+        
+        return cleaned_reply
+    except Exception as e:
+        print(f"[ERROR] process_query failed: {str(e)}")
+        return random.choice(MOCK_RESPONSES)
 
 # --- API Routes ---
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
+    """Handle chat messages."""
     try:
-        data = request.json
+        data = request.get_json()
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Invalid JSON request', 'success': False}), 400
+        
         user_message = data.get('message', '').strip()
-        
         if not user_message:
-            return jsonify({'error': 'Empty message'}), 400
+            return jsonify({'error': 'Message cannot be empty', 'success': False}), 400
         
+        # Process the query
         reply = process_query(user_message)
-        return jsonify({'reply': reply, 'success': True}), 200
+        
+        # Verify response is valid
+        if not reply or not isinstance(reply, str):
+            reply = random.choice(MOCK_RESPONSES)
+        
+        return jsonify({
+            'reply': reply,
+            'success': True
+        }), 200
+    
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        error_msg = str(e)
+        print(f"[ERROR] Chat endpoint error: {error_msg}")
+        return jsonify({
+            'error': 'Server error processing your message',
+            'success': False
+        }), 500
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -132,7 +241,7 @@ def get_history():
         return jsonify({'history': [], 'success': True}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/api/clear-history', methods=['POST'])
 def clear_history():
     try:

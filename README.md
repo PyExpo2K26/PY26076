@@ -25,7 +25,8 @@ Digital Exhaust Poisoning (Biometric Scrambling): Employs Micro-Behavioral Model
 Deepfake Shield (Vocal Armor): Applies Adversarial Perturbations to real-time audio. Using a Local DSP (Digital Signal Processor), it adds inaudible noise that causes voice-cloning AI to fail during feature extraction, while maintaining crystal-clear quality for human listeners.
 
 Module B: Defensive Data Integrity (ML Focus)
-Honey-Prompt Trap (Scraper Sabotage): A specialized Generative AI defense that detects bot-scrapers and serves them "hallucination bait." It generates highly realistic but subtly flawed data (e.g., incorrect financial dates) to corrupt the scraper's database and tag the stolen data for copyright enforcement.
+Honey-Prompt Trap (Scraper Sabotage): A specialized Generative AI defense that detects bot-scrapers and serves them "hallucination bait." It generates highly realistic but subtly flawed data.
+(e.g., incorrect financial dates) to corrupt the scraper's database and tag the stolen data for copyright enforcement.
 
 Module C: Cognitive Augmentation (Productivity Focus)
 Perspective Swapper: A Cross-Domain Translation engine that re-maps the underlying logic of a text. It uses LoRA-tuned models to explain complex technical or legal data through analogies specific to the user’s background 
@@ -56,3 +57,16 @@ High-Level Executives: To prevent "CEO Fraud" via voice cloning.
 Independent Creators: To protect their proprietary content from AI training scrapers.
 
 Privacy Advocates: Individuals seeking to escape the biometric surveillance economy
+
+
+
+
+
+
+
+
+
+
+https://github.com/user-attachments/assets/f948b0af-7632-4484-ba43-d345d7b9151d
+
+
