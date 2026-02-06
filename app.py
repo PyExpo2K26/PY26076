@@ -18,20 +18,19 @@ CORS(app)
 # --- CONFIG ---
 # Using Groq API for real AI responses (free tier: https://console.groq.com)
 # Get your free API key from: https://console.groq.com/keys
-API_KEY = "gsk_REPLACE_WITH_YOUR_GROQ_API_KEY"  # Get free key from Groq console
+API_KEY = "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"  # Get free key from Groq console
 API_PROVIDER = "groq"  # Options: "groq", "openrouter", "huggingface"
-MODEL = "mixtral-8x7b-32768"  # Fast and capable Groq model (free tier)
+MODEL = "llama3-70b-8192"# Fast and capable Groq model (free tier)
 VOICE = "en-US-GuyNeural"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
 
 # Mock responses for when API is unavailable
 MOCK_RESPONSES = [
-    "Enna solraan da? 😎",
-    "Dei, edhuku innum pesara? 🙄",
+    "my brain is not braining right now",
     "Infini Think here! That's interesting... 🔥",
     "Aah, interesting indeed! Tell me more 👀",
-    "Haha, nice one! 😆",
+    "Ok,I need to improve to ssatisfy your queries.",
 ]
 
 # --- Load previous chat context ---
@@ -106,7 +105,8 @@ def get_groq_reply(prompt, context_messages):
             json=payload,
             timeout=10
         )
-        
+        print("[DEBUG] Groq response:", response.text)
+
         if response.status_code == 200:
             result = response.json()["choices"][0]["message"]["content"]
             if result and isinstance(result, str):
