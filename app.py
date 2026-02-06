@@ -16,11 +16,9 @@ app = Flask(__name__, template_folder='templates', static_folder='static', stati
 CORS(app)
 
 # --- CONFIG ---
-# Using Groq API for real AI responses (free tier: https://console.groq.com)
-# Get your free API key from: https://console.groq.com/keys
-API_KEY = "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"  # Get free key from Groq console
-API_PROVIDER = "groq"  # Options: "groq", "openrouter", "huggingface"
-MODEL = "llama3-70b-8192"# Fast and capable Groq model (free tier)
+# Using free inference APIs (no API key needed)
+API_PROVIDER = "huggingface"  # Free inference API
+MODEL = "facebook/blenderbot-400M-distill"
 VOICE = "en-US-GuyNeural"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
@@ -67,95 +65,78 @@ def save_to_json(user_text, venom_text):
 
 # --- Get AI-generated reply from Groq or other providers ---
 def get_infini_think_reply(prompt, context_messages):
-    """Get response from AI API - Groq (recommended) or fallback."""
+    """Get response from free AI APIs - no key needed."""
+    # Try primary API
+    reply = get_free_inference_api(prompt)
+    if reply:
+        return reply
     
-    if API_PROVIDER == "groq":
-        return get_groq_reply(prompt, context_messages)
-    else:
-        return get_openrouter_reply(prompt, context_messages)
-
-def get_groq_reply(prompt, context_messages):
-    """Get response from Groq API (free, fast, and reliable)."""
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Fallback to alternative service
+    print("[INFO] Primary API failed, trying alternative...")
+    reply = get_alt_inference_api(prompt)
+    if reply:
+        return reply
     
-    # Build messages for Groq
-    messages = [
-        {
-            "role": "system",
-            "content": "You are 'Infini Think', a sarcastic multilingual Tamil-English AI assistant. Learn the user's tone and history. Speak with wit, sass, and roast. Keep replies concise and witty. Don't use asterisks for actions."
-        },
-        *context_messages,
-        {"role": "user", "content": prompt}
-    ]
-    
-    payload = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 500
-    }
-    
-    try:
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=10
-        )
-        print("[DEBUG] Groq response:", response.text)
-
-        if response.status_code == 200:
-            result = response.json()["choices"][0]["message"]["content"]
-            if result and isinstance(result, str):
-                return result.strip()
-        else:
-            print(f"[ERROR] Groq API Error: {response.status_code}")
-            if response.status_code == 401:
-                print("[INFO] Invalid API key. Please update API_KEY in app.py")
-    
-    except Exception as e:
-        print(f"[ERROR] Groq request failed: {str(e)}")
-    
+    # Final fallback
+    print("[INFO] APIs failed, returning mock response")
     return None
 
-def get_openrouter_reply(prompt, context_messages):
-    """Fallback to OpenRouter (if you have a valid key)."""
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    noise = f"(time: {datetime.now().strftime('%H:%M:%S')}, rand: {random.randint(1, 9999)})"
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are 'Infini Think', a sarcastic multilingual Tamil-English AI assistant. Learn the user's tone and history. Speak with wit, sass, and roast. Keep replies short and funny."
-            },
-            *context_messages,
-            {"role": "user", "content": f"{prompt} {noise}"}
-        ]
-    }
-    
+def get_free_inference_api(prompt):
+    """Use HuggingFace free inference API - BlenderBot."""
     try:
+        payload = {"inputs": prompt}
+        headers = {"Content-Type": "application/json"}
+        
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
             headers=headers,
             json=payload,
-            timeout=10
+            timeout=20
         )
         
         if response.status_code == 200:
-            result = response.json()["choices"][0]["message"]["content"]
-            if result and isinstance(result, str):
-                return result.strip()
+            result = response.json()
+            if isinstance(result, dict) and "generated_text" in result:
+                text = result["generated_text"].strip()
+                if text and len(text) > 5:
+                    return text[:300]
+            elif isinstance(result, list) and len(result) > 0:
+                if isinstance(result[0], dict) and "generated_text" in result[0]:
+                    text = result[0]["generated_text"].strip()
+                    if text and len(text) > 5:
+                        return text[:300]
     
     except Exception as e:
-        print(f"[ERROR] OpenRouter request failed: {str(e)}")
+        print(f"[ERROR] HuggingFace BlenderBot failed: {str(e)}")
+    
+    return None
+
+
+def get_alt_inference_api(prompt):
+    """Alternative free inference API - DistilGPT2."""
+    try:
+        payload = {"inputs": prompt}
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/distilgpt2",
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                text = result[0].get("generated_text", prompt).strip()
+                # Remove the input prompt if duplicated
+                if text.startswith(prompt):
+                    text = text[len(prompt):].strip()
+                if text and len(text) > 5:
+                    return text[:300]
+    
+    except Exception as e:
+        print(f"[ERROR] DistilGPT2 API failed: {str(e)}")
     
     return None
 
