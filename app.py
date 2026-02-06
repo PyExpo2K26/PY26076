@@ -23,6 +23,142 @@ VOICE = "en-US-GuyNeural"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
 
+# Add your token here
+HF_TOKEN = "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"# Add your token here
+
+def get_free_inference_api(prompt):
+    """Use HuggingFace free inference API with wait logic."""
+    try:
+        payload = {
+            "inputs": prompt,
+            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
+        }
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{MODEL}",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get("generated_text", "").strip()
+        
+        # If it returns a dict error (like rate limit)
+        print(f"[API Message] {result}")
+        return None
+    
+    except Exception as e:
+        print(f"[ERROR] Connection failed: {str(e)}")
+        return None
+
+def get_free_inference_api(prompt):
+    """Use HuggingFace free inference API with wait logic."""
+    try:
+        payload = {
+            "inputs": prompt,
+            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
+        }
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{MODEL}",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get("generated_text", "").strip()
+        
+        # If it returns a dict error (like rate limit)
+        print(f"[API Message] {result}")
+        return None
+    
+    except Exception as e:
+        print(f"[ERROR] Connection failed: {str(e)}")
+        return None
+HF_TOKEN = "paste_your_token_here"
+
+def get_free_inference_api(prompt):
+    """Use HuggingFace free inference API with wait logic."""
+    try:
+        payload = {
+            "inputs": prompt,
+            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
+        }
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{MODEL}",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get("generated_text", "").strip()
+        
+        # If it returns a dict error (like rate limit)
+        print(f"[API Message] {result}")
+        return None
+    
+    except Exception as e:
+        print(f"[ERROR] Connection failed: {str(e)}")
+        return None"
+
+def get_free_inference_api(prompt):
+    """Use HuggingFace free inference API with wait logic."""
+    try:
+        payload = {
+            "inputs": prompt,
+            "options": {"wait_for_model": True}  # Vital: waits for model to wake up
+        }
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{MODEL}",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        # Hugging Face returns a list for this model: [{'generated_text': '...'}]
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get("generated_text", "").strip()
+        
+        # If it returns a dict error (like rate limit)
+        print(f"[API Message] {result}")
+        return None
+    
+    except Exception as e:
+        print(f"[ERROR] Connection failed: {str(e)}")
+        return None
+
 # Mock responses for when API is unavailable
 MOCK_RESPONSES = [
     "my brain is not braining right now",
