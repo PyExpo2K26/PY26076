@@ -11,6 +11,7 @@ import webbrowser
 app = Flask(__name__)
 CORS(app)
 
+
 # Configuration
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
