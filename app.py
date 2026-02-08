@@ -11,12 +11,18 @@ app = Flask(__name__, template_folder='templates', static_folder='static', stati
 CORS(app)
 
 # --- CONFIG ---
-# Using meta-llama/Llama-3.1-8B-Instruct - widely available and reliable
-MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 HISTORY_FILE = "infini_think_chat_log.json"
 MAX_HISTORY = 6
-# HuggingFace API Token - valid token
+
+# Groq API Configuration
+GROQ_API_KEY = "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"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+
+# HuggingFace API Configuration (fallback)
 HF_TOKEN = "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"
+HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.1"
+HF_ENDPOINT = "https://api-inference.huggingface.co/models"
 
 MOCK_RESPONSES = [
     "My brain is not braining right now. 🧠",
@@ -59,67 +65,137 @@ def save_to_json(user_text, reply_text):
     with open(HISTORY_FILE, "w", encoding="utf-8") as file:
         json.dump(data[-50:], file, indent=2, ensure_ascii=False)
 
-# --- Primary API Call ---
-def get_free_inference_api(prompt, context_messages):
+# --- Groq API Call ---
+def get_groq_response(prompt, context_messages):
     headers = {
-        "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json",
-        "X-Wait-For-Model": "true"
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
     }
     
-    # Structure for Chat Completion API
-    messages = [{"role": "system", "content": "You are Infini Think, a witty and helpful AI assistant. Keep responses concise and friendly."}]
+    messages = [{"role": "system", "content": "You are Infini Think, a witty and helpful AI assistant. Keep responses concise and friendly. Max 100 words."}]
     if context_messages:
         messages.extend(context_messages)
     messages.append({"role": "user", "content": prompt})
     
     payload = {
-        "model": MODEL,
+        "model": GROQ_MODEL,
         "messages": messages,
         "temperature": 0.7,
-        "max_tokens": 500,
+        "max_tokens": 300,
         "stream": False
     }
     
     try:
-        print(f"[DEBUG] Calling HF API with model: {MODEL}")
+        print(f"[DEBUG] Calling Groq API with model: {GROQ_MODEL}")
         response = requests.post(
-            "https://router.huggingface.co/hf-inference/v1/chat/completions",
+            GROQ_ENDPOINT,
             headers=headers,
             json=payload,
-            timeout=60 
+            timeout=30
         )
         
-        print(f"[DEBUG] API Status: {response.status_code}")
+        print(f"[DEBUG] Groq API Status: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0].get('message', {}).get('content', '').strip()
                 if content:
-                    print(f"[DEBUG] Got response from API: {content[:100]}...")
+                    print(f"[DEBUG] Got Groq response: {content[:80]}...")
                     return content
                 else:
-                    print("[ERROR] Empty content in API response")
+                    print("[ERROR] Empty content in Groq response")
                     return None
             else:
-                print(f"[ERROR] Unexpected response structure: {result}")
+                print(f"[ERROR] Unexpected Groq response structure: {result}")
                 return None
         else:
-            print(f"[ERROR] API Error {response.status_code}: {response.text[:300]}")
+            print(f"[ERROR] Groq API Error {response.status_code}: {response.text[:200]}")
             return None
             
     except Exception as e:
-        print(f"[ERROR] Connection failed: {e}")
+        print(f"[ERROR] Groq connection failed: {e}")
         return None
 
-# --- Main Logic Router ---
-def get_infini_think_reply(prompt, context_messages):
-    # Try the main API
-    reply = get_free_inference_api(prompt, context_messages)
+# --- HuggingFace Text Generation API Call (Fallback) ---
+def get_huggingface_response(prompt, context_messages):
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
     
-    # If API fails, return None so process_query uses a mock response
-    return reply
+    # Build context string for text-generation model
+    context_text = ""
+    if context_messages:
+        for msg in context_messages[-2:]:  # Last 2 messages
+            if msg.get('role') == 'user':
+                context_text += f"User: {msg.get('content', '')}\n"
+            else:
+                context_text += f"Assistant: {msg.get('content', '')}\n"
+    
+    full_prompt = f"""You are Infini Think, a witty AI assistant. Keep response under 100 words.
+{context_text}User: {prompt}
+Assistant:"""
+    
+    payload = {
+        "inputs": full_prompt,
+        "parameters": {
+            "max_new_tokens": 150,
+            "temperature": 0.7,
+        }
+    }
+    
+    try:
+        print(f"[DEBUG] Calling HuggingFace API with model: {HF_MODEL}")
+        response = requests.post(
+            f"{HF_ENDPOINT}/{HF_MODEL}",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        print(f"[DEBUG] HuggingFace API Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                content = result[0].get('generated_text', '').strip()
+                # Extract just the response part (after "Assistant:")
+                if "Assistant:" in content:
+                    content = content.split("Assistant:")[-1].strip()
+                if content:
+                    print(f"[DEBUG] Got HuggingFace response: {content[:80]}...")
+                    return content
+                else:
+                    print("[ERROR] Empty content in HuggingFace response")
+                    return None
+            else:
+                print(f"[ERROR] Unexpected HuggingFace response structure: {result}")
+                return None
+        else:
+            print(f"[ERROR] HuggingFace API Error {response.status_code}: {response.text[:200]}")
+            return None
+            
+    except Exception as e:
+        print(f"[ERROR] HuggingFace connection failed: {e}")
+        return None
+
+# --- Primary API Call with Fallback ---
+def get_infini_think_reply(prompt, context_messages):
+    # Try Groq first
+    reply = get_groq_response(prompt, context_messages)
+    if reply:
+        return reply
+    
+    # Fall back to HuggingFace
+    print("[DEBUG] Groq API failed, trying HuggingFace...")
+    reply = get_huggingface_response(prompt, context_messages)
+    if reply:
+        return reply
+    
+    # If both fail, return None so process_query uses mock response
+    print("[DEBUG] Both APIs failed, using mock response")
+    return None
 
 def process_query(text):
     try:
@@ -176,7 +252,9 @@ def console_status():
         
         return jsonify({
             'status': 'running',
-            'model': MODEL,
+            'model': f"{GROQ_MODEL} (Groq) + {HF_MODEL} (HuggingFace fallback)",
+            'primary_api': 'Groq',
+            'fallback_api': 'HuggingFace',
             'history_file': HISTORY_FILE,
             'history_exists': history_exists,
             'message_count': message_count,
@@ -187,11 +265,36 @@ def console_status():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e), 'success': False}), 500
 
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    try:
+        if not os.path.exists(HISTORY_FILE):
+            return jsonify({'history': [], 'success': True})
+        
+        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Transform response format to match frontend expectations
+            history = [{'user': item['user'], 'venom': item['infini_think']} for item in data]
+            return jsonify({'history': history, 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/clear-history', methods=['POST'])
+def clear_history():
+    try:
+        if os.path.exists(HISTORY_FILE):
+            os.remove(HISTORY_FILE)
+            return jsonify({'message': 'Chat history cleared', 'success': True})
+        else:
+            return jsonify({'message': 'No history file to clear', 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
 @app.route('/api/console/history', methods=['GET'])
 def console_history():
     try:
         if not os.path.exists(HISTORY_FILE):
-            return jsonify({'messages': [], 'success': True})
+            return jsonify({'messages': [], 'count': 0, 'success': True})
         
         with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)

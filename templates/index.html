@@ -1,49 +1,792 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#000000">
-    <meta name="description" content="Infini Think AI Assistant">
-    <title>Infini Think</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔥 Infini Think - AI Assistant</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
+:root {
+    --primary-color: #6c5ce7;
+    --secondary-color: #a29bfe;
+    --accent-color: #00cec9;
+    --glass-border: rgba(255,255,255,0.2);
+    --text-white: #ffffff;
+    --text-muted: #dfe6e9;
+    --font-main: 'Segoe UI', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    font-family: var(--font-main);
+    height:100vh;
+    overflow:hidden;
+    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+    color:white;
+}
+
+/* LOGIN PAGE */
+#loginPage {
+    position:absolute;
+    width:100%;
+    height:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+}
+
+#loginBox {
+    background: rgba(0,0,0,0.8);
+    padding:40px 30px;
+    border-radius:15px;
+    text-align:center;
+    width:320px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+#loginBox h2 { margin-bottom:20px; color:#ffd700; font-size:1.8em; }
+
+#loginBox input {
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border-radius:8px;
+    border:none;
+    background: rgba(255,255,255,0.1);
+    color:white;
+}
+
+#loginBox input::placeholder { color: rgba(255,255,255,0.6); }
+
+#loginBox button {
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    background: linear-gradient(135deg,#6c5ce7,#a29bfe);
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    margin-top:15px;
+    transition: all 0.3s;
+}
+
+#loginBox button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(108, 92, 231, 0.3);
+}
+
+/* MAIN PAGE */
+#mainPage { display:none; height:100%; }
+
+/* STAR BACKGROUND */
+#star-container {
+    position:absolute;
+    width:100%;
+    height:100%;
+    z-index:0;
+    pointer-events:none;
+}
+
+.star {
+    position:absolute;
+    border-radius:50%;
+    opacity:0;
+    animation: twinkle var(--duration) ease-in-out infinite;
+}
+
+@keyframes twinkle {
+    0% { transform:scale(0.5); opacity:0; }
+    50% { transform:scale(1.2); opacity:1; }
+    100% { transform:scale(0.5); opacity:0; }
+}
+
+/* LAYOUT */
+.app-container { display:flex; height:100vh; position:relative; z-index:1; }
+
+aside {
+    width:260px;
+    background:rgba(0,0,0,0.4);
+    backdrop-filter: blur(10px);
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:15px;
+    border-right: 1px solid rgba(255,255,255,0.1);
+    overflow-y:auto;
+}
+
+.brand-btn {
+    padding:12px 15px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    color:white;
+    background:linear-gradient(135deg,#6c5ce7,#a29bfe);
+    font-weight:500;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.brand-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(108, 92, 231, 0.3);
+}
+
+.brand-btn.secondary {
+    background:rgba(255,255,255,0.1);
+    border:1px solid var(--glass-border);
+}
+
+.brand-btn.secondary:hover {
+    background:rgba(255,255,255,0.15);
+}
+
+.brand-btn.jolly {
+    background:linear-gradient(135deg,#ff9ff3,#f368e0);
+}
+
+main { flex:1; display:flex; flex-direction:column; }
+
+header {
+    padding:15px 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+}
+
+header b {
+    font-size: 1.3em;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.settings-btn {
+    background:transparent;
+    border:1px solid white;
+    color:white;
+    padding:8px 14px;
+    cursor:pointer;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.settings-btn:hover {
+    background:rgba(255,255,255,0.1);
+}
+
+#settings-panel {
+    position:absolute;
+    top:60px;
+    right:20px;
+    background:rgba(0,0,0,0.9);
+    backdrop-filter: blur(10px);
+    padding:15px;
+    border-radius:10px;
+    display:none;
+    width:250px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+#settings-panel h4 {
+    color: #ffd700;
+    margin-bottom: 10px;
+}
+
+.theme-option {
+    display:block;
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    background:rgba(255,255,255,0.1);
+    border:none;
+    color:white;
+    cursor:pointer;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.theme-option:hover {
+    background:rgba(255,255,255,0.2);
+}
+
+#settings-panel label {
+    display: block;
+    margin: 10px 0;
+    cursor: pointer;
+}
+
+#settings-panel input[type="color"] {
+    width: 40px;
+    height: 30px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#settings-panel input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+#settings-panel hr {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    margin: 10px 0;
+}
+
+.chat-feed {
+    flex:1;
+    padding:20px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+}
+
+.chat-feed::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-feed::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+
+.chat-feed::-webkit-scrollbar-thumb {
+    background: rgba(108, 92, 231, 0.5);
+    border-radius: 10px;
+}
+
+.chat-feed::-webkit-scrollbar-thumb:hover {
+    background: rgba(108, 92, 231, 0.8);
+}
+
+.message {
+    max-width:70%;
+    padding:12px 15px;
+    border-radius:12px;
+    word-wrap: break-word;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.user {
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    align-self:flex-end;
+    border-radius: 18px 18px 5px 18px;
+}
+
+.message.ai {
+    background:rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    align-self: flex-start;
+    border-radius: 18px 18px 18px 5px;
+}
+
+.message.error {
+    background:rgba(255, 68, 68, 0.3);
+    border: 1px solid rgba(255, 68, 68, 0.6);
+    color: #ff6b6b;
+    align-self: flex-start;
+}
+
+.message-badge {
+    font-size: 0.85em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    opacity: 0.8;
+}
+
+.welcome {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    gap: 20px;
+    text-align: center;
+}
+
+.welcome h2 {
+    font-size: 2em;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.welcome p {
+    color: var(--text-muted);
+    font-size: 1.1em;
+}
+
+.input-wrapper {
+    padding:15px 20px;
+    background:rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.input-bar {
+    display:flex;
+    gap: 10px;
+}
+
+.input-field {
+    flex:1;
+    padding:12px 15px;
+    border:none;
+    border-radius:20px;
+    background:rgba(255,255,255,0.1);
+    color:white;
+    font-size: 1em;
+    transition: all 0.3s;
+}
+
+.input-field:focus {
+    outline: none;
+    background:rgba(255,255,255,0.15);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.3);
+}
+
+.input-field::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
+.send-btn {
+    padding:10px 20px;
+    border:none;
+    border-radius:20px;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color:white;
+    cursor:pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(108, 92, 231, 0.3);
+}
+
+.send-btn:active {
+    transform: translateY(0);
+}
+
+.send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+    animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    30% {
+        transform: translateY(-10px);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    aside {
+        width: 75px;
+    }
+
+    .brand-btn span {
+        display: none;
+    }
+
+    .message {
+        max-width: 85%;
+    }
+}
+</style>
 </head>
+
 <body>
-    <div class="app">
-        <div class="container">
-            <header class="header">
-                <h1>🔥 Infini Think</h1>
-                <p>Your sarcastic multilingual AI assistant</p>
+
+<!-- LOGIN -->
+<div id="loginPage">
+    <div id="loginBox">
+        <h2>🔥 Infini Think</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="email" id="email" placeholder="Email">
+        <button onclick="submitLogin()">Enter</button>
+    </div>
+</div>
+
+<!-- MAIN PAGE -->
+<div id="mainPage">
+    <div id="star-container"></div>
+    <div class="app-container">
+
+        <!-- LEFT SIDE -->
+        <aside>
+            <button class="brand-btn" onclick="newChat()" title="New Chat">
+                <i class="fas fa-plus"></i> <span>New Chat</span>
+            </button>
+
+            <button class="brand-btn secondary" onclick="clearChatHistory()" title="Clear History">
+                <i class="fas fa-trash"></i> <span>Clear</span>
+            </button>
+
+            <button class="brand-btn secondary" onclick="toggleConsole()" title="Console">
+                <i class="fas fa-terminal"></i> <span>Console</span>
+            </button>
+
+            <button class="brand-btn jolly" onclick="showSystemPrompt()" title="AI Settings">
+                <i class="fas fa-cog"></i> <span>Settings</span>
+            </button>
+        </aside>
+
+        <!-- CHAT AREA -->
+        <main>
+            <header>
+                <div><b>🔥 Infini Think</b></div>
+                <button class="settings-btn" onclick="toggleSettings()">
+                    <i class="fas fa-sliders-h"></i> Settings
+                </button>
+
+                <div id="settings-panel">
+                    <h4>⚙️ Appearance</h4>
+
+                    <button class="theme-option" onclick="changeBg('galaxy')">
+                        <i class="fas fa-galaxy"></i> Galaxy
+                    </button>
+                    <button class="theme-option" onclick="changeBg('sunset')">
+                        <i class="fas fa-sun"></i> Sunset
+                    </button>
+                    <button class="theme-option" onclick="changeBg('matrix')">
+                        <i class="fas fa-code"></i> Matrix
+                    </button>
+
+                    <hr>
+
+                    <label>
+                        <i class="fas fa-palette"></i> Background
+                        <input type="color" id="bgColorPicker" value="#1b2735">
+                    </label>
+
+                    <label>
+                        <input type="checkbox" id="starsToggle" checked>
+                        ✨ Show Stars
+                    </label>
+
+                    <hr>
+
+                    <h4 style="margin-top: 15px; color: #00cec9;">ℹ️ Status</h4>
+                    <p style="font-size: 0.9em; color: #dfe6e9; margin-top: 8px;">
+                        <span id="statusText">✅ Connected</span>
+                    </p>
+                </div>
             </header>
 
-            <div class="chat-container">
-                <div class="messages" id="messages">
-                    <div class="welcome">
-                        <h2>Welcome to Infini Think</h2>
-                        <p>Say something to get started!</p>
-                    </div>
-                </div>
-
-                <div class="input-area">
-                    <form id="chat-form" onsubmit="sendMessage(event)">
-                        <input 
-                            type="text" 
-                            id="input" 
-                            placeholder="Type your message here..." 
-                            autocomplete="off"
-                            required
-                        >
-                        <button type="submit" id="send-btn">Send</button>
-                    </form>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
+            <div class="chat-feed" id="chatFeed">
+                <div class="welcome">
+                    <h2>🔥 Infini Think</h2>
+                    <p>Your sarcastic AI assistant is ready</p>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+            <div class="input-wrapper">
+                <div class="input-bar">
+                    <input type="text" id="userInput" class="input-field" placeholder="Ask something...">
+                    <button class="send-btn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i> <span>Send</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+
+const API_BASE = 'http://localhost:5000';
+let isLoading = false;
+
+/* LOGIN */
+function submitLogin(){
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("email").value.trim();
+
+    if(username === "" || email === ""){
+        alert("Username and Email are required!");
+        return;
+    }
+
+    const emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
+    if(!email.match(emailPattern)){
+        alert("Enter valid email!");
+        return;
+    }
+
+    document.getElementById("loginPage").style.display="none";
+    document.getElementById("mainPage").style.display="block";
+    loadChatHistory();
+}
+
+/* LOAD CHAT HISTORY */
+async function loadChatHistory() {
+    try {
+        const response = await fetch(`${API_BASE}/api/history`);
+        const data = await response.json();
+        
+        if (data.success && data.history && data.history.length > 0) {
+            document.getElementById("chatFeed").innerHTML = '';
+            data.history.forEach(item => {
+                addMessage(item.user, 'user');
+                addMessage(item.venom, 'ai');
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load history:', error);
+    }
+}
+
+/* CHAT */
+async function sendMessage(){
+    const input = document.getElementById("userInput");
+    if(input.value.trim() === "" || isLoading) return;
+
+    const userText = input.value.trim();
+    addMessage(userText, 'user');
+    
+    // Clear welcome if present
+    const welcome = document.querySelector('.welcome');
+    if (welcome) welcome.remove();
+    
+    input.value = "";
+    isLoading = true;
+    
+    // Show typing indicator
+    const typingId = showTypingIndicator();
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userText })
+        });
+        
+        const data = await response.json();
+        removeTypingIndicator(typingId);
+        
+        if (data.success && data.reply) {
+            addMessage(data.reply, 'ai');
+        } else {
+            addMessage('⚠️ Error: ' + (data.error || 'Failed to get response'), 'error');
+        }
+    } catch (error) {
+        removeTypingIndicator(typingId);
+        addMessage('⚠️ Connection error. Make sure backend is running.', 'error');
+    } finally {
+        isLoading = false;
+        document.getElementById("userInput").focus();
+    }
+}
+
+function addMessage(text, type='user') {
+    const chat = document.getElementById("chatFeed");
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    if (type === 'user') {
+        messageDiv.textContent = text;
+    } else if (type === 'ai') {
+        const badge = document.createElement('div');
+        badge.className = 'message-badge';
+        badge.textContent = '🔥 Infini Think';
+        
+        const content = document.createElement('div');
+        content.textContent = text;
+        
+        messageDiv.appendChild(badge);
+        messageDiv.appendChild(content);
+    } else if (type === 'error') {
+        messageDiv.textContent = text;
+    }
+    
+    chat.appendChild(messageDiv);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const chat = document.getElementById("chatFeed");
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai';
+    messageDiv.id = 'typing-indicator';
+    
+    const badge = document.createElement('div');
+    badge.className = 'message-badge';
+    badge.textContent = '🔥 Infini Think';
+    
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing-indicator';
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'typing-dot';
+        typingDiv.appendChild(dot);
+    }
+    
+    messageDiv.appendChild(badge);
+    messageDiv.appendChild(typingDiv);
+    chat.appendChild(messageDiv);
+    chat.scrollTop = chat.scrollHeight;
+    
+    return 'typing-indicator';
+}
+
+function removeTypingIndicator(id) {
+    const element = document.getElementById(id);
+    if (element) element.remove();
+}
+
+/* SIDEBAR ACTIONS */
+function newChat() {
+    document.getElementById("chatFeed").innerHTML = `
+        <div class="welcome">
+            <h2>🔥 Infini Think</h2>
+            <p>Your sarcastic AI assistant is ready</p>
+        </div>
+    `;
+}
+
+async function clearChatHistory() {
+    if (!confirm('Clear all chat history?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/clear-history`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            newChat();
+            alert('✅ History cleared!');
+        }
+    } catch (error) {
+        alert('Failed to clear history');
+    }
+}
+
+function toggleConsole() {
+    window.open('/console', 'console', 'width=1000,height=700');
+}
+
+function showSystemPrompt() {
+    const prompt = prompt('Enter system prompt for AI (leave blank for default):', '');
+    if (prompt !== null) {
+        fetch(`${API_BASE}/api/phase3/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ system_prompt: prompt })
+        }).catch(e => console.log('Config not available in this build'));
+    }
+}
+
+/* SETTINGS */
+function toggleSettings(){
+    const panel = document.getElementById("settings-panel");
+    panel.style.display = panel.style.display === "block" ? "none" : "block";
+}
+
+document.addEventListener("click", function(e){
+    const panel = document.getElementById("settings-panel");
+    const btn = document.querySelector(".settings-btn");
+
+    if(panel.style.display === "block" &&
+       !panel.contains(e.target) &&
+       !btn.contains(e.target)){
+        panel.style.display = "none";
+    }
+});
+
+function changeBg(theme){
+    if(theme === "galaxy")
+        document.body.style.background = "radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)";
+    if(theme === "sunset")
+        document.body.style.background = "linear-gradient(to right, #ff7e5f, #feb47b)";
+    if(theme === "matrix")
+        document.body.style.background = "black";
+}
+
+document.getElementById("bgColorPicker").addEventListener("input", function(){
+    document.body.style.background = this.value;
+});
+
+document.getElementById("starsToggle").addEventListener("change", function(){
+    document.getElementById("star-container").style.display =
+        this.checked ? "block" : "none";
+});
+
+/* Enter key for sending */
+document.getElementById("userInput").addEventListener("keypress", function(e) {
+    if (e.key === "Enter" && !isLoading) {
+        sendMessage();
+    }
+});
+
+/* STARS BACKGROUND */
+const starContainer = document.getElementById("star-container");
+for(let i = 0; i < 120; i++){
+    const star = document.createElement("div");
+    star.className = "star";
+    star.style.left = Math.random() * 100 + "%";
+    star.style.top = Math.random() * 100 + "%";
+    star.style.width = star.style.height = Math.random() * 3 + "px";
+    star.style.background = "white";
+    star.style.setProperty("--duration", (Math.random() * 3 + 2) + "s");
+    starContainer.appendChild(star);
+}
+
+</script>
 </body>
 </html>
