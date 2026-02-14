@@ -463,7 +463,7 @@ header b {
             <p style="color:#a29bfe; margin-bottom:20px; font-size:0.9em;">Existing User Login</p>
             <input type="text" id="loginUsername" placeholder="Username" style="display:block; width:100%;">
             <input type="password" id="loginPassword" placeholder="Password" style="display:block; width:100%; margin-top:10px;">
-            <button onclick="loginUser()" style="width:100%; margin-top:15px;">Login</button>
+            <button onclick="loginUser(event)" style="width:100%; margin-top:15px;">Login</button>
             <button onclick="switchToRegister()" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3);">New User? Register</button>
             <div id="loginError" style="color:#ff6b6b; margin-top:10px; display:none; text-align:center;"></div>
         </div>
@@ -476,7 +476,7 @@ header b {
             <input type="email" id="regEmail" placeholder="Email Address" style="display:block; width:100%; margin-top:10px;">
             <input type="password" id="regPassword" placeholder="Password" style="display:block; width:100%; margin-top:10px;">
             <input type="password" id="regConfirmPassword" placeholder="Confirm Password" style="display:block; width:100%; margin-top:10px;">
-            <button onclick="registerUser()" style="width:100%; margin-top:15px;">Register</button>
+            <button onclick="registerUser(event)" style="width:100%; margin-top:15px;">Register</button>
             <button onclick="switchToLogin()" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3);">Back to Login</button>
             <div id="registerError" style="color:#ff6b6b; margin-top:10px; display:none; text-align:center;"></div>
         </div>
@@ -559,7 +559,7 @@ header b {
             <div class="input-wrapper">
                 <div class="input-bar">
                     <input type="text" id="userInput" class="input-field" placeholder="Ask something...">
-                    <button class="send-btn" onclick="sendMessage()">
+                    <button class="send-btn" onclick="sendMessage(); return false;">
                         <i class="fas fa-paper-plane"></i> <span>Send</span>
                     </button>
                 </div>
@@ -589,6 +589,44 @@ header b {
 const API_BASE = 'http://localhost:5000';
 let isLoading = false;
 let currentConversationId = null;
+
+// Initialize page
+window.addEventListener('DOMContentLoaded', () => {
+    console.log('🔥 Infini Think page loaded');
+    
+    // Check if user is already logged in
+    const currentUser = localStorage.getItem('currentUser');
+    if (currentUser) {
+        console.log('✅ User already logged in:', currentUser);
+        const loginPage = document.getElementById("loginPage");
+        const mainPage = document.getElementById("mainPage");
+        if (loginPage && mainPage) {
+            loginPage.style.display = "none";
+            mainPage.style.display = "block";
+            setTimeout(() => {
+                const userInput = document.getElementById("userInput");
+                if (userInput) userInput.focus();
+            }, 100);
+        }
+    }
+});
+
+// Allow Enter key to submit
+document.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const loginMode = document.getElementById("loginMode");
+        const registerMode = document.getElementById("registerMode");
+        const userInput = document.getElementById("userInput");
+        
+        if (loginMode && loginMode.style.display !== "none") {
+            loginUser(e);
+        } else if (registerMode && registerMode.style.display !== "none") {
+            registerUser(e);
+        } else if (userInput && userInput === document.activeElement) {
+            sendMessage();
+        }
+    }
+});
 
 /* LOGIN & REGISTRATION */
 function switchToRegister() {
@@ -651,6 +689,10 @@ async function registerUser() {
     }
 
     try {
+        const regBtn = event.target;
+        regBtn.disabled = true;
+        regBtn.textContent = "Creating Account...";
+
         const response = await fetch(`${API_BASE}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -667,29 +709,55 @@ async function registerUser() {
         } else {
             errorDiv.textContent = "❌ " + (data.error || 'Registration failed!');
             errorDiv.style.display = "block";
+            regBtn.disabled = false;
+            regBtn.textContent = "Register";
         }
     } catch (error) {
+        console.error('Registration error:', error);
         errorDiv.textContent = '❌ Registration failed. Check your connection and try again.';
         errorDiv.style.display = "block";
+        regBtn.disabled = false;
+        regBtn.textContent = "Register";
     }
 }
 
-async function loginUser() {
+async function loginUser(event) {
+    if (event) event.preventDefault();
+    
     const username = document.getElementById("loginUsername").value.trim();
     const password = document.getElementById("loginPassword").value;
     const errorDiv = document.getElementById("loginError");
+    const loginBtn = document.querySelector("#loginMode button");
 
     // Clear previous error
     errorDiv.style.display = "none";
     errorDiv.textContent = "";
 
+    // Validation
     if (!username || !password) {
         errorDiv.textContent = "❌ Username and password are required!";
         errorDiv.style.display = "block";
         return;
     }
 
+    if (username.length < 2) {
+        errorDiv.textContent = "❌ Invalid username!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    if (password.length < 1) {
+        errorDiv.textContent = "❌ Password cannot be empty!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
     try {
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.textContent = "Logging in...";
+        }
+
         const response = await fetch(`${API_BASE}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -699,18 +767,48 @@ async function loginUser() {
         const data = await response.json();
 
         if (data.success) {
+            console.log('✅ Login successful, loading chat page...');
             // Store user session
             localStorage.setItem('currentUser', username);
             localStorage.setItem('loginTime', new Date().toISOString());
-            document.getElementById("loginPage").style.display = "none";
-            document.getElementById("mainPage").style.display = "block";
+            
+            // Transition to main page
+            const loginPage = document.getElementById("loginPage");
+            const mainPage = document.getElementById("mainPage");
+            
+            if (loginPage && mainPage) {
+                loginPage.style.display = "none";
+                mainPage.style.display = "block";
+                
+                // Initialize the chat page
+                setTimeout(() => {
+                    const userInput = document.getElementById("userInput");
+                    if (userInput) {
+                        userInput.focus();
+                        console.log('✅ Chat page ready');
+                    }
+                }, 100);
+            } else {
+                console.error('❌ Missing page elements');
+                errorDiv.textContent = '❌ Page layout error. Please refresh.';
+                errorDiv.style.display = "block";
+            }
         } else {
             errorDiv.textContent = "❌ " + (data.error || 'Invalid username or password!');
             errorDiv.style.display = "block";
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.textContent = "Login";
+            }
         }
     } catch (error) {
+        console.error('Login error:', error);
         errorDiv.textContent = '❌ Login failed. Check your connection and try again.';
         errorDiv.style.display = "block";
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.textContent = "Login";
+        }
     }
 }
 
@@ -723,7 +821,7 @@ async function loadChatHistory() {
 /* CHAT */
 async function sendMessage(){
     const input = document.getElementById("userInput");
-    if(input.value.trim() === "" || isLoading) return;
+    if(!input || input.value.trim() === "" || isLoading) return;
 
     const userText = input.value.trim();
     addMessage(userText, 'user');
@@ -744,6 +842,7 @@ async function sendMessage(){
     const typingId = showTypingIndicator();
     
     try {
+        console.log('Sending message:', userText);
         const response = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -753,20 +852,25 @@ async function sendMessage(){
             })
         });
         
+        console.log('Response status:', response.status);
         const data = await response.json();
         removeTypingIndicator(typingId);
         
         if (data.success && data.reply) {
+            console.log('✅ Got AI response');
             addMessage(data.reply, 'ai');
         } else {
+            console.error('❌ API error:', data.error);
             addMessage('⚠️ Error: ' + (data.error || 'Failed to get response'), 'error');
         }
     } catch (error) {
+        console.error('Chat error:', error);
         removeTypingIndicator(typingId);
         addMessage('⚠️ Connection error. Make sure backend is running.', 'error');
     } finally {
         isLoading = false;
-        document.getElementById("userInput").focus();
+        const userInput = document.getElementById("userInput");
+        if (userInput) userInput.focus();
     }
 }
 

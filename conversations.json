@@ -11,5 +11,23 @@
     ],
     "created_at": "2026-02-09 20:43:46.147574",
     "updated_at": "2026-02-09 20:43:47.890917"
+  },
+  {
+    "id": "test-conv",
+    "title": "Hello!",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 09:21:10.292673",
+        "user": "Hello!",
+        "ai": "Hello again! How can I help you today?"
+      },
+      {
+        "timestamp": "2026-02-14 09:57:51.205249",
+        "user": "Hello!",
+        "ai": "Hello! Let's start fresh. What's on your mind?"
+      }
+    ],
+    "created_at": "2026-02-14 09:21:10.296080",
+    "updated_at": "2026-02-14 09:57:51.206538"
   }
 ]

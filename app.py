@@ -8,23 +8,30 @@ import requests
 from datetime import datetime
 import uuid
 import hashlib
+import logging
+from functools import wraps
 
 app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"]}})
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- CONFIG ---
 HISTORY_FILE = "infini_think_chat_log.json"
 CONVERSATIONS_FILE = "conversations.json"
 CREDENTIALS_FILE = "user_credentials.json"
 MAX_HISTORY = 6
+API_TIMEOUT = 30  # seconds
 
 # Groq API Configuration
-GROQ_API_KEY = "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"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 
 # HuggingFace API Configuration (fallback)
-HF_TOKEN = "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"
+HF_TOKEN = os.getenv("HF_TOKEN", "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")
 HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.1"
 HF_ENDPOINT = "https://api-inference.huggingface.co/models"
 
@@ -99,7 +106,44 @@ def load_all_credentials():
 
 # --- Hash password ---
 def hash_password(password):
+    """Hash password using SHA256. In production, use bcrypt."""
+    if not password or not isinstance(password, str):
+        raise ValueError("Invalid password")
     return hashlib.sha256(password.encode()).hexdigest()
+
+# --- Sanitize input ---
+def sanitize_input(text):
+    """Remove potentially harmful characters from input"""
+    if not isinstance(text, str):
+        return ""
+    # Remove control characters and limit length
+    text = re.sub(r'[\x00-\x1f\x7f]', '', text)
+    return text[:500]  # Max 500 chars
+
+# --- Rate limiting decorator ---
+from time import time as get_time
+request_times = {}
+
+def rate_limit(limit_per_minute=30):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            client_ip = request.remote_addr
+            current_time = get_time()
+            
+            if client_ip not in request_times:
+                request_times[client_ip] = []
+            
+            # Clean old requests (older than 1 minute)
+            request_times[client_ip] = [t for t in request_times[client_ip] if current_time - t < 60]
+            
+            if len(request_times[client_ip]) >= limit_per_minute:
+                return jsonify({'error': 'Too many requests. Please try again later.', 'success': False}), 429
+            
+            request_times[client_ip].append(current_time)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # --- Check if user exists ---
 def user_exists(username):
@@ -120,70 +164,90 @@ def is_valid_email(email):
 
 # --- Register new user ---
 def register_user(username, email, password):
-    # Validate inputs
-    if not username or not email or not password:
-        return {'success': False, 'error': 'All fields are required!'}
+    try:
+        # Sanitize inputs
+        username = sanitize_input(username).strip()
+        email = sanitize_input(email).strip()
+        
+        # Validate inputs
+        if not username or not email or not password:
+            return {'success': False, 'error': 'All fields are required!'}
+        
+        if len(username) < 3:
+            return {'success': False, 'error': 'Username must be at least 3 characters!'}
+        
+        if len(password) < 6:
+            return {'success': False, 'error': 'Password must be at least 6 characters!'}
+        
+        if not is_valid_email(email):
+            return {'success': False, 'error': 'Invalid email address!'}
+        
+        if user_exists(username):
+            return {'success': False, 'error': 'Username already taken!'}
+        
+        if email_exists(email):
+            return {'success': False, 'error': 'Email already registered!'}
+        
+        credentials = load_all_credentials()
+        credentials.append({
+            "username": username,
+            "email": email,
+            "password": hash_password(password),
+            "created_at": str(datetime.now()),
+            "last_login": str(datetime.now())
+        })
+        
+        with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+            json.dump(credentials, file, indent=2, ensure_ascii=False)
+        
+        logger.info(f"User registered: {username}")
+        return {'success': True, 'message': 'User registered successfully!'}
     
-    username = username.strip()
-    email = email.strip()
-    
-    if len(username) < 3:
-        return {'success': False, 'error': 'Username must be at least 3 characters!'}
-    
-    if len(password) < 6:
-        return {'success': False, 'error': 'Password must be at least 6 characters!'}
-    
-    if not is_valid_email(email):
-        return {'success': False, 'error': 'Invalid email address!'}
-    
-    if user_exists(username):
-        return {'success': False, 'error': 'Username already taken!'}
-    
-    if email_exists(email):
-        return {'success': False, 'error': 'Email already registered!'}
-    
-    credentials = load_all_credentials()
-    credentials.append({
-        "username": username,
-        "email": email,
-        "password": hash_password(password),
-        "created_at": str(datetime.now()),
-        "last_login": str(datetime.now())
-    })
-    
-    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-        json.dump(credentials, file, indent=2, ensure_ascii=False)
-    
-    return {'success': True, 'message': 'User registered successfully!'}
+    except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
+        return {'success': False, 'error': 'Registration failed. Please try again.'}
 
 # --- Verify user login ---
 def verify_user_login(username, password):
-    credentials = load_all_credentials()
+    try:
+        # Sanitize input
+        username = sanitize_input(username).strip()
+        
+        if not username or not password:
+            return {'success': False, 'error': 'Username and password are required!'}
+        
+        credentials = load_all_credentials()
+        
+        for user in credentials:
+            if user["username"].lower() == username.lower():
+                # Check if user has a password field (handle legacy users)
+                if "password" not in user:
+                    # Legacy user without password - set one for future logins
+                    user["password"] = hash_password(password)
+                    user["last_login"] = str(datetime.now())
+                    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                        json.dump(credentials, file, indent=2, ensure_ascii=False)
+                    logger.info(f"Legacy user password set: {username}")
+                    return {'success': True, 'username': user['username'], 'message': 'Welcome! Your password has been set.'}
+                
+                # Verify password
+                if user["password"] == hash_password(password):
+                    # Update last login
+                    user["last_login"] = str(datetime.now())
+                    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                        json.dump(credentials, file, indent=2, ensure_ascii=False)
+                    logger.info(f"User logged in: {username}")
+                    return {'success': True, 'username': user['username']}
+                else:
+                    logger.warning(f"Failed login attempt: {username}")
+                    return {'success': False, 'error': 'Invalid password!'}
+        
+        logger.warning(f"Login attempt with unknown username: {username}")
+        return {'success': False, 'error': 'Username not found!'}
     
-    for user in credentials:
-        if user["username"].lower() == username.lower():
-            # Check if user has a password field (handle legacy users)
-            if "password" not in user:
-                # Legacy user without password - set one for future logins
-                user["password"] = hash_password(password)
-                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-                    json.dump(credentials, file, indent=2, ensure_ascii=False)
-                # Allow login for legacy users
-                user["last_login"] = str(datetime.now())
-                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-                    json.dump(credentials, file, indent=2, ensure_ascii=False)
-                return {'success': True, 'username': user['username'], 'message': 'Welcome! Your password has been set.'}
-            
-            if user["password"] == hash_password(password):
-                # Update last login
-                user["last_login"] = str(datetime.now())
-                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-                    json.dump(credentials, file, indent=2, ensure_ascii=False)
-                return {'success': True, 'username': user['username']}
-            else:
-                return {'success': False, 'error': 'Invalid password!'}
-    
-    return {'success': False, 'error': 'Username not found!'}
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return {'success': False, 'error': 'Login failed. Please try again.'}
 
 # --- Manage Conversations (Separate Chat Sessions) ---
 def load_all_conversations():
@@ -242,94 +306,100 @@ def add_message_to_conversation(conversation_id, user_msg, ai_msg):
 
 # --- Groq API Call ---
 def get_groq_response(prompt, context_messages):
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = [{"role": "system", "content": "You are Infini Think, a witty and helpful AI assistant. Keep responses concise and friendly. Max 100 words."}]
-    if context_messages:
-        messages.extend(context_messages)
-    messages.append({"role": "user", "content": prompt})
-    
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 300,
-        "stream": False
-    }
-    
     try:
-        print(f"[DEBUG] Calling Groq API with model: {GROQ_MODEL}")
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        messages = [{"role": "system", "content": "You are Infini Think, a witty and helpful AI assistant. Keep responses concise and friendly. Max 100 words."}]
+        if context_messages:
+            messages.extend(context_messages)
+        messages.append({"role": "user", "content": prompt})
+        
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 300,
+            "stream": False
+        }
+        
+        logger.info(f"[Groq] Calling API with model: {GROQ_MODEL}")
         response = requests.post(
             GROQ_ENDPOINT,
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=API_TIMEOUT
         )
         
-        print(f"[DEBUG] Groq API Status: {response.status_code}")
+        logger.info(f"[Groq] Status: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0].get('message', {}).get('content', '').strip()
                 if content:
-                    print(f"[DEBUG] Got Groq response: {content[:80]}...")
+                    logger.info(f"[Groq] Success: {content[:60]}...")
                     return content
                 else:
-                    print("[ERROR] Empty content in Groq response")
+                    logger.error("[Groq] Empty content received")
                     return None
             else:
-                print(f"[ERROR] Unexpected Groq response structure: {result}")
+                logger.error(f"[Groq] Unexpected response structure")
                 return None
         else:
-            print(f"[ERROR] Groq API Error {response.status_code}: {response.text[:200]}")
+            logger.error(f"[Groq] API Error {response.status_code}: {response.text[:200]}")
             return None
             
+    except requests.Timeout:
+        logger.error("[Groq] Request timeout")
+        return None
+    except requests.ConnectionError:
+        logger.error("[Groq] Connection error")
+        return None
     except Exception as e:
-        print(f"[ERROR] Groq connection failed: {e}")
+        logger.error(f"[Groq] Error: {str(e)}")
         return None
 
 # --- HuggingFace Text Generation API Call (Fallback) ---
 def get_huggingface_response(prompt, context_messages):
-    headers = {
-        "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
-    # Build context string for text-generation model
-    context_text = ""
-    if context_messages:
-        for msg in context_messages[-2:]:  # Last 2 messages
-            if msg.get('role') == 'user':
-                context_text += f"User: {msg.get('content', '')}\n"
-            else:
-                context_text += f"Assistant: {msg.get('content', '')}\n"
-    
-    full_prompt = f"""You are Infini Think, a witty AI assistant. Keep response under 100 words.
+    try:
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        # Build context string for text-generation model
+        context_text = ""
+        if context_messages:
+            for msg in context_messages[-2:]:  # Last 2 messages
+                if msg.get('role') == 'user':
+                    context_text += f"User: {msg.get('content', '')}\n"
+                else:
+                    context_text += f"Assistant: {msg.get('content', '')}\n"
+        
+        full_prompt = f"""You are Infini Think, a witty AI assistant. Keep response under 100 words.
 {context_text}User: {prompt}
 Assistant:"""
-    
-    payload = {
-        "inputs": full_prompt,
-        "parameters": {
-            "max_new_tokens": 150,
-            "temperature": 0.7,
+        
+        payload = {
+            "inputs": full_prompt,
+            "parameters": {
+                "max_new_tokens": 150,
+                "temperature": 0.7,
+            }
         }
-    }
-    
-    try:
-        print(f"[DEBUG] Calling HuggingFace API with model: {HF_MODEL}")
+        
+        logger.info(f"[HuggingFace] Calling API with model: {HF_MODEL}")
         response = requests.post(
             f"{HF_ENDPOINT}/{HF_MODEL}",
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=API_TIMEOUT
         )
         
-        print(f"[DEBUG] HuggingFace API Status: {response.status_code}")
+        logger.info(f"[HuggingFace] Status: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
@@ -339,20 +409,26 @@ Assistant:"""
                 if "Assistant:" in content:
                     content = content.split("Assistant:")[-1].strip()
                 if content:
-                    print(f"[DEBUG] Got HuggingFace response: {content[:80]}...")
+                    logger.info(f"[HuggingFace] Success: {content[:60]}...")
                     return content
                 else:
-                    print("[ERROR] Empty content in HuggingFace response")
+                    logger.error("[HuggingFace] Empty content")
                     return None
             else:
-                print(f"[ERROR] Unexpected HuggingFace response structure: {result}")
+                logger.error(f"[HuggingFace] Unexpected response")
                 return None
         else:
-            print(f"[ERROR] HuggingFace API Error {response.status_code}: {response.text[:200]}")
+            logger.error(f"[HuggingFace] API Error {response.status_code}")
             return None
             
+    except requests.Timeout:
+        logger.error("[HuggingFace] Request timeout")
+        return None
+    except requests.ConnectionError:
+        logger.error("[HuggingFace] Connection error")
+        return None
     except Exception as e:
-        print(f"[ERROR] HuggingFace connection failed: {e}")
+        logger.error(f"[HuggingFace] Error: {str(e)}")
         return None
 
 # --- Primary API Call with Fallback ---
@@ -380,16 +456,20 @@ def process_query(text):
         # If the API gave nothing, use a backup
         if not reply:
             reply = random.choice(MOCK_RESPONSES)
+            logger.warning("Using mock response due to API failure")
         
         # Clean up any AI-style thought marks like *thinking*
         cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
+        
+        if not cleaned_reply:
+            cleaned_reply = random.choice(MOCK_RESPONSES)
         
         # Save this interaction
         save_to_json(text, cleaned_reply)
         return cleaned_reply
         
     except Exception as e:
-        print(f"[ERROR] process_query failed: {e}")
+        logger.error(f"process_query error: {e}")
         return random.choice(MOCK_RESPONSES)
 
 # --- Routes ---
@@ -402,20 +482,28 @@ def console():
     return render_template('console.html')
 
 @app.route('/api/chat', methods=['POST'])
+@rate_limit(limit_per_minute=30)
 def chat():
-    data = request.get_json()
-    if not data or 'message' not in data:
-        return jsonify({'error': 'No message provided', 'success': False}), 400
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({'error': 'No message provided', 'success': False}), 400
+            
+        user_message = sanitize_input(data.get('message', '')).strip()
+        conversation_id = data.get('conversation_id', 'default')
         
-    user_message = data.get('message', '').strip()
-    conversation_id = data.get('conversation_id', 'default')
-    
-    reply = process_query(user_message)
-    
-    # Store message in conversation
-    add_message_to_conversation(conversation_id, user_message, reply)
-    
-    return jsonify({'reply': reply, 'conversation_id': conversation_id, 'success': True})
+        if not user_message:
+            return jsonify({'error': 'Message cannot be empty', 'success': False}), 400
+        
+        reply = process_query(user_message)
+        
+        # Store message in conversation
+        add_message_to_conversation(conversation_id, user_message, reply)
+        
+        return jsonify({'reply': reply, 'conversation_id': conversation_id, 'success': True})
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {str(e)}")
+        return jsonify({'error': 'Failed to process message', 'success': False}), 500
 
 @app.route('/api/console/status', methods=['GET'])
 def console_status():
@@ -516,9 +604,13 @@ def get_user_credentials():
         return jsonify({'error': str(e), 'success': False}), 500
 
 @app.route('/api/register', methods=['POST'])
+@rate_limit(limit_per_minute=5)
 def api_register():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request', 'success': False}), 400
+        
         username = data.get('username', '').strip()
         email = data.get('email', '').strip()
         password = data.get('password', '').strip()
@@ -529,14 +621,19 @@ def api_register():
         result = register_user(username, email, password)
         return jsonify(result), (200 if result['success'] else 400)
     except Exception as e:
-        return jsonify({'error': str(e), 'success': False}), 500
+        logger.error(f"Register endpoint error: {str(e)}")
+        return jsonify({'error': 'Server error. Please try again.', 'success': False}), 500
 
 @app.route('/api/login', methods=['POST'])
+@rate_limit(limit_per_minute=10)
 def api_login():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request', 'success': False}), 400
+        
         username = data.get('username', '').strip()
-        password = data.get('password', '').strip()
+        password = data.get('password', '')
         
         if not username or not password:
             return jsonify({'error': 'Username and password are required', 'success': False}), 400
@@ -544,7 +641,8 @@ def api_login():
         result = verify_user_login(username, password)
         return jsonify(result), (200 if result['success'] else 401)
     except Exception as e:
-        return jsonify({'error': str(e), 'success': False}), 500
+        logger.error(f"Login endpoint error: {str(e)}")
+        return jsonify({'error': 'Server error. Please try again.', 'success': False}), 500
 
 @app.route('/api/conversations', methods=['GET'])
 def get_conversations():
@@ -595,5 +693,9 @@ def delete_conversation(conversation_id):
 if __name__ == '__main__':
     # Migrate legacy users without passwords
     migrate_legacy_users()
+    logger.info("🔥 Starting Infini Think Flask App")
+    logger.info(f"Primary API: {GROQ_MODEL}")
+    logger.info(f"Fallback API: {HF_MODEL}")
+    logger.info("Server running on http://0.0.0.0:5000")
     # Using debug=True is helpful during development
-    app.run(debug=True, port=5000,host ="0.0.0.0")
+    app.run(debug=True, port=5000, host="0.0.0.0")
