@@ -457,10 +457,29 @@ header b {
 <!-- LOGIN -->
 <div id="loginPage">
     <div id="loginBox">
-        <h2>🔥 Infini Think</h2>
-        <input type="text" id="username" placeholder="Username">
-        <input type="email" id="email" placeholder="Email">
-        <button onclick="submitLogin()">Enter</button>
+        <!-- LOGIN MODE -->
+        <div id="loginMode" style="display:block;">
+            <h2>🔥 Infini Think</h2>
+            <p style="color:#a29bfe; margin-bottom:20px; font-size:0.9em;">Existing User Login</p>
+            <input type="text" id="loginUsername" placeholder="Username" style="display:block; width:100%;">
+            <input type="password" id="loginPassword" placeholder="Password" style="display:block; width:100%; margin-top:10px;">
+            <button onclick="loginUser()" style="width:100%; margin-top:15px;">Login</button>
+            <button onclick="switchToRegister()" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3);">New User? Register</button>
+            <div id="loginError" style="color:#ff6b6b; margin-top:10px; display:none; text-align:center;"></div>
+        </div>
+
+        <!-- REGISTER MODE -->
+        <div id="registerMode" style="display:none;">
+            <h2>🔥 Infini Think</h2>
+            <p style="color:#a29bfe; margin-bottom:20px; font-size:0.9em;">Create New Account</p>
+            <input type="text" id="regUsername" placeholder="Username" style="display:block; width:100%;">
+            <input type="email" id="regEmail" placeholder="Email Address" style="display:block; width:100%; margin-top:10px;">
+            <input type="password" id="regPassword" placeholder="Password" style="display:block; width:100%; margin-top:10px;">
+            <input type="password" id="regConfirmPassword" placeholder="Confirm Password" style="display:block; width:100%; margin-top:10px;">
+            <button onclick="registerUser()" style="width:100%; margin-top:15px;">Register</button>
+            <button onclick="switchToLogin()" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3);">Back to Login</button>
+            <div id="registerError" style="color:#ff6b6b; margin-top:10px; display:none; text-align:center;"></div>
+        </div>
     </div>
 </div>
 
@@ -479,8 +498,8 @@ header b {
                 <i class="fas fa-trash"></i> <span>Clear</span>
             </button>
 
-            <button class="brand-btn secondary" onclick="toggleConsole()" title="Console">
-                <i class="fas fa-terminal"></i> <span>Console</span>
+            <button class="brand-btn secondary" onclick="showChatHistory()" title="Chat History">
+                <i class="fas fa-history"></i> <span>History</span>
             </button>
 
             <button class="brand-btn jolly" onclick="showSystemPrompt()" title="AI Settings">
@@ -533,7 +552,7 @@ header b {
             <div class="chat-feed" id="chatFeed">
                 <div class="welcome">
                     <h2>🔥 Infini Think</h2>
-                    <p>Your sarcastic AI assistant is ready</p>
+                    <p>Your personal AI assistant is ready</p>
                 </div>
             </div>
 
@@ -549,48 +568,156 @@ header b {
     </div>
 </div>
 
+<!-- CHAT HISTORY MODAL -->
+<div id="historyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2000; justify-content:center; align-items:center; display:none;">
+    <div style="background:rgba(0,0,0,0.9); padding:30px; border-radius:15px; width:80%; max-height:80vh; overflow-y:auto; border:1px solid rgba(255,255,255,0.2); backdrop-filter:blur(10px); max-width:600px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="color:#ffd700; font-size:1.5em;">📊 Chat History</h3>
+            <button onclick="closeHistoryModal()" style="background:transparent; border:none; color:white; font-size:1.3em; cursor:pointer;">✕</button>
+        </div>
+        <div id="historyContent" style="color:#dfe6e9; max-height:70vh; overflow-y:auto;">
+            <p style="text-align:center; opacity:0.7;">Loading history...</p>
+        </div>
+        <button onclick="downloadHistory()" style="width:100%; padding:12px; margin-top:15px; background:linear-gradient(135deg,#6c5ce7,#a29bfe); border:none; color:white; border-radius:8px; cursor:pointer; font-weight:bold;">
+            <i class="fas fa-download"></i> Download All Conversations
+        </button>
+    </div>
+</div>
+
 <script>
 
 const API_BASE = 'http://localhost:5000';
 let isLoading = false;
+let currentConversationId = null;
 
-/* LOGIN */
-function submitLogin(){
-    const username = document.getElementById("username").value.trim();
-    const email = document.getElementById("email").value.trim();
+/* LOGIN & REGISTRATION */
+function switchToRegister() {
+    document.getElementById("loginMode").style.display = "none";
+    document.getElementById("registerMode").style.display = "block";
+    document.getElementById("registerError").style.display = "none";
+}
 
-    if(username === "" || email === ""){
-        alert("Username and Email are required!");
+function switchToLogin() {
+    document.getElementById("registerMode").style.display = "none";
+    document.getElementById("loginMode").style.display = "block";
+    document.getElementById("loginError").style.display = "none";
+}
+
+function validateEmail(email) {
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailPattern.test(email.trim());
+}
+
+async function registerUser() {
+    const username = document.getElementById("regUsername").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const confirmPassword = document.getElementById("regConfirmPassword").value;
+    const errorDiv = document.getElementById("registerError");
+
+    // Clear previous error
+    errorDiv.style.display = "none";
+    errorDiv.textContent = "";
+
+    // Validation
+    if (!username || !email || !password || !confirmPassword) {
+        errorDiv.textContent = "❌ All fields are required!";
+        errorDiv.style.display = "block";
         return;
     }
 
-    const emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
-    if(!email.match(emailPattern)){
-        alert("Enter valid email!");
+    if (username.length < 3) {
+        errorDiv.textContent = "❌ Username must be at least 3 characters!";
+        errorDiv.style.display = "block";
         return;
     }
 
-    document.getElementById("loginPage").style.display="none";
-    document.getElementById("mainPage").style.display="block";
-    loadChatHistory();
+    if (!validateEmail(email)) {
+        errorDiv.textContent = "❌ Please enter a valid email address (e.g., user@example.com)!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    if (password.length < 6) {
+        errorDiv.textContent = "❌ Password must be at least 6 characters!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        errorDiv.textContent = "❌ Passwords do not match!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Account created successfully! Please login.');
+            switchToLogin();
+            document.getElementById("loginUsername").value = username;
+            document.getElementById("loginPassword").value = "";
+        } else {
+            errorDiv.textContent = "❌ " + (data.error || 'Registration failed!');
+            errorDiv.style.display = "block";
+        }
+    } catch (error) {
+        errorDiv.textContent = '❌ Registration failed. Check your connection and try again.';
+        errorDiv.style.display = "block";
+    }
+}
+
+async function loginUser() {
+    const username = document.getElementById("loginUsername").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const errorDiv = document.getElementById("loginError");
+
+    // Clear previous error
+    errorDiv.style.display = "none";
+    errorDiv.textContent = "";
+
+    if (!username || !password) {
+        errorDiv.textContent = "❌ Username and password are required!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Store user session
+            localStorage.setItem('currentUser', username);
+            localStorage.setItem('loginTime', new Date().toISOString());
+            document.getElementById("loginPage").style.display = "none";
+            document.getElementById("mainPage").style.display = "block";
+        } else {
+            errorDiv.textContent = "❌ " + (data.error || 'Invalid username or password!');
+            errorDiv.style.display = "block";
+        }
+    } catch (error) {
+        errorDiv.textContent = '❌ Login failed. Check your connection and try again.';
+        errorDiv.style.display = "block";
+    }
 }
 
 /* LOAD CHAT HISTORY */
 async function loadChatHistory() {
-    try {
-        const response = await fetch(`${API_BASE}/api/history`);
-        const data = await response.json();
-        
-        if (data.success && data.history && data.history.length > 0) {
-            document.getElementById("chatFeed").innerHTML = '';
-            data.history.forEach(item => {
-                addMessage(item.user, 'user');
-                addMessage(item.venom, 'ai');
-            });
-        }
-    } catch (error) {
-        console.error('Failed to load history:', error);
-    }
+    // This is called on initial page load - we start with a new chat
+    currentConversationId = null;
 }
 
 /* CHAT */
@@ -608,6 +735,11 @@ async function sendMessage(){
     input.value = "";
     isLoading = true;
     
+    // Create new conversation if needed
+    if (!currentConversationId) {
+        await createNewConversation(userText);
+    }
+    
     // Show typing indicator
     const typingId = showTypingIndicator();
     
@@ -615,7 +747,10 @@ async function sendMessage(){
         const response = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userText })
+            body: JSON.stringify({ 
+                message: userText,
+                conversation_id: currentConversationId
+            })
         });
         
         const data = await response.json();
@@ -694,12 +829,174 @@ function removeTypingIndicator(id) {
 
 /* SIDEBAR ACTIONS */
 function newChat() {
+    currentConversationId = null;
     document.getElementById("chatFeed").innerHTML = `
         <div class="welcome">
             <h2>🔥 Infini Think</h2>
-            <p>Your sarcastic AI assistant is ready</p>
+            <p>Your personal AI assistant is ready</p>
         </div>
     `;
+}
+
+async function createNewConversation(firstMessage) {
+    try {
+        const response = await fetch(`${API_BASE}/api/conversation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: firstMessage.substring(0, 50) })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            currentConversationId = data.conversation_id;
+        }
+    } catch (error) {
+        console.error('Failed to create conversation:', error);
+    }
+}
+
+async function loadConversation(conversationId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/conversation/${conversationId}`);
+        const data = await response.json();
+        
+        if (data.success && data.conversation) {
+            currentConversationId = conversationId;
+            document.getElementById("chatFeed").innerHTML = '';
+            
+            data.conversation.messages.forEach(item => {
+                addMessage(item.user, 'user');
+                addMessage(item.ai, 'ai');
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load conversation:', error);
+    }
+    
+    closeHistoryModal();
+}
+
+async function showChatHistory() {
+    const modal = document.getElementById("historyModal");
+    modal.style.display = "flex";
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/conversations`);
+        const data = await response.json();
+        
+        if (data.success && data.conversations && data.conversations.length > 0) {
+            let html = '';
+            data.conversations.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).forEach((conv) => {
+                const date = new Date(conv.updated_at).toLocaleString();
+                html += `
+                    <div style="margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px; border-left:3px solid #6c5ce7; transition:all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                            <div style="flex:1; cursor:pointer;" onclick="loadConversation('${conv.id}')">
+                                <div style="color:#ffd700; font-weight:bold;">📝 ${conv.title}</div>
+                                <div style="color:#a29bfe; font-size:0.85em;">${date}</div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="downloadConversation('${conv.id}', '${conv.title}')" style="background:transparent; border:1px solid #00cec9; color:#00cec9; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:0.8em;" title="Download this chat">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button onclick="deleteConversation('${conv.id}')" style="background:transparent; border:1px solid #ff6b6b; color:#ff6b6b; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:0.8em;" title="Delete this chat">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById("historyContent").innerHTML = html;
+        } else {
+            document.getElementById("historyContent").innerHTML = '<p style="text-align:center; opacity:0.7;">No chat history yet.</p>';
+        }
+    } catch (error) {
+        document.getElementById("historyContent").innerHTML = '<p style="color:#ff6b6b;">Failed to load history</p>';
+    }
+}
+
+function closeHistoryModal() {
+    document.getElementById("historyModal").style.display = "none";
+}
+
+async function downloadConversation(conversationId, title) {
+    try {
+        const response = await fetch(`${API_BASE}/api/conversation/${conversationId}`);
+        const data = await response.json();
+        
+        if (data.success && data.conversation) {
+            let text = `🔥 INFINI THINK - CHAT TRANSCRIPT\n`;
+            text += `Title: ${title}\n`;
+            text += `Created: ${data.conversation.created_at}\n`;
+            text += `Last Updated: ${data.conversation.updated_at}\n`;
+            text += '='.repeat(60) + '\n\n';
+            
+            data.conversation.messages.forEach((msg, idx) => {
+                text += `[${idx + 1}] ${msg.timestamp}\n`;
+                text += `You: ${msg.user}\n\n`;
+                text += `Infini Think: ${msg.ai}\n`;
+                text += '─'.repeat(60) + '\n\n';
+            });
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `infini-${title.replace(/\s+/g, '-').substring(0, 30)}.txt`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        alert('Failed to download conversation');
+    }
+}
+
+async function deleteConversation(conversationId) {
+    if (!confirm('Delete this conversation?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/conversation/${conversationId}`, { method: 'DELETE' });
+        const data = await response.json();
+        
+        if (data.success) {
+            showChatHistory(); // Refresh the list
+            if (currentConversationId === conversationId) {
+                newChat(); // Clear current chat if it was deleted
+            }
+        }
+    } catch (error) {
+        alert('Failed to delete conversation');
+    }
+}
+
+async function downloadHistory() {
+    try {
+        const response = await fetch(`${API_BASE}/api/conversations`);
+        const data = await response.json();
+        
+        if (data.success && data.conversations) {
+            let text = '🔥 INFINI THINK - ALL CONVERSATIONS\n';
+            text += '='.repeat(60) + '\n\n';
+            
+            data.conversations.forEach((conv, idx) => {
+                text += `[${idx + 1}] ${conv.title}\n`;
+                text += `Created: ${conv.created_at}\n`;
+                text += `Last Updated: ${conv.updated_at}\n`;
+                text += '─'.repeat(60) + '\n\n';
+            });
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'infini-think-conversations.txt';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        alert('Failed to download history');
+    }
 }
 
 async function clearChatHistory() {
@@ -715,10 +1012,6 @@ async function clearChatHistory() {
     } catch (error) {
         alert('Failed to clear history');
     }
-}
-
-function toggleConsole() {
-    window.open('/console', 'console', 'width=1000,height=700');
 }
 
 function showSystemPrompt() {
