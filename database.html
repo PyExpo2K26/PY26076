@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chatbot Supabase Test</title>
+</head>
+<body>
+
+  <h2>Chatbot Test</h2>
+ 
+  <form id="chatForm">
+    <input type="text" id="name" placeholder="Name" required /><br><br>
+    <input type="email" id="email" placeholder="Email" required /><br><br>
+    <input type="password" id="password" placeholder="Password" required /><br><br>
+    <input type="number" id="age" placeholder="Age" /><br><br>
+    
+
+    <button type="submit">Send</button>
+  </form>
+
+  <p id="status"></p>
+
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const SUPABASE_URL = "https://xyyjfhicetpbkycplvde.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_yuICKp8lBP_OQYwHV3pUFA_J4_yxJCH";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById("chatForm");
+    const status = document.getElementById("status");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const age = document.getElementById("age").value;
+      
+
+      const { data, error } = await supabase
+        .from("user data")   
+        .insert([
+          {
+            id: crypto.randomUUID(),
+            name: name,
+            email: email,
+            password: password, 
+            age: age,
+            
+          }
+        ]);
+
+      if (error) {
+        console.error(error);
+        status.innerText = "❌ Error: " + error.message;
+      } else {
+        status.innerText = "✅ Message saved in database";
+        form.reset();
+      }
+    });
+  </script>
+
+</body>
+</html>
