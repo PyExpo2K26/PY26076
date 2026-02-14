@@ -220,5 +220,51 @@
     ],
     "created_at": "2026-02-14 10:34:03.763554",
     "updated_at": "2026-02-14 10:36:05.137115"
+  },
+  {
+    "id": "3d8caeaf-74e1-4252-b0e6-5a016bbac557",
+    "title": "hello",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:57:29.586678",
+        "user": "hello",
+        "ai": "Hello again! How can I help you now?"
+      }
+    ],
+    "created_at": "2026-02-14 10:57:27.788809",
+    "updated_at": "2026-02-14 10:57:29.589019"
+  },
+  {
+    "id": "9d457c87-97f8-4b01-ab1e-e209afe02221",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 11:02:13.747923",
+        "user": "hi",
+        "ai": "Hello. How can I help you today?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:20.238612",
+        "user": "hi mapla",
+        "ai": "What's up, Mapla? Need help with something?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:31.755619",
+        "user": "eppdi irruka bro",
+        "ai": "Superb! How's life treating you, bro?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:44.781261",
+        "user": "saptiya bro",
+        "ai": "Mazha! All good, bro!"
+      },
+      {
+        "timestamp": "2026-02-14 11:03:10.499594",
+        "user": "eppdi github la push pannanum",
+        "ai": "GitHub la push pannurathu easy! \n1. Git init\n2. Add files\n3. Commit\n4. Push!"
+      }
+    ],
+    "created_at": "2026-02-14 11:02:11.156840",
+    "updated_at": "2026-02-14 11:03:10.501075"
   }
 ]
