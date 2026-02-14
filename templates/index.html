@@ -8,12 +8,12 @@
 
 <style>
 :root {
-    --primary-color: #6c5ce7;
-    --secondary-color: #a29bfe;
-    --accent-color: #00cec9;
-    --glass-border: rgba(255,255,255,0.2);
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --glass-border: rgba(255,255,255,0.1);
     --text-white: #ffffff;
-    --text-muted: #dfe6e9;
+    --text-muted: #bdc3c7;
     --font-main: 'Segoe UI', sans-serif;
 }
 
@@ -23,7 +23,7 @@ body {
     font-family: var(--font-main);
     height:100vh;
     overflow:hidden;
-    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     color:white;
 }
 
@@ -48,7 +48,7 @@ body {
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-#loginBox h2 { margin-bottom:20px; color:#ffd700; font-size:1.8em; }
+#loginBox h2 { margin-bottom:20px; color:#3498db; font-size:1.8em; }
 
 #loginBox input {
     width:100%;
@@ -67,7 +67,7 @@ body {
     padding:12px;
     border:none;
     border-radius:8px;
-    background: linear-gradient(135deg,#6c5ce7,#a29bfe);
+    background: #3498db;
     color:white;
     font-weight:bold;
     cursor:pointer;
@@ -114,13 +114,13 @@ body {
 
 aside {
     width:260px;
-    background:rgba(0,0,0,0.4);
+    background:rgba(0,0,0,0.3);
     backdrop-filter: blur(10px);
     padding:20px;
     display:flex;
     flex-direction:column;
     gap:15px;
-    border-right: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.05);
     overflow-y:auto;
 }
 
@@ -130,7 +130,7 @@ aside {
     border-radius:10px;
     cursor:pointer;
     color:white;
-    background:linear-gradient(135deg,#6c5ce7,#a29bfe);
+    background:rgba(52, 152, 219, 0.8);
     font-weight:500;
     transition: all 0.3s;
     display: flex;
@@ -140,12 +140,13 @@ aside {
 
 .brand-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(108, 92, 231, 0.3);
+    background:rgba(52, 152, 219, 1);
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
 }
 
 .brand-btn.secondary {
     background:rgba(255,255,255,0.1);
-    border:1px solid var(--glass-border);
+    border:1px solid rgba(255,255,255,0.1);
 }
 
 .brand-btn.secondary:hover {
@@ -153,7 +154,8 @@ aside {
 }
 
 .brand-btn.jolly {
-    background:linear-gradient(135deg,#ff9ff3,#f368e0);
+    background:rgba(52, 152, 219, 0.8);
+    margin-top: auto;
 }
 
 main { flex:1; display:flex; flex-direction:column; }
@@ -163,48 +165,34 @@ header {
     display:flex;
     justify-content:space-between;
     align-items:center;
-    background:rgba(0,0,0,0.3);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    background:rgba(0,0,0,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
     backdrop-filter: blur(10px);
 }
 
 header b {
     font-size: 1.3em;
-    background: linear-gradient(135deg, #ffd700, #ffed4e);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #3498db;
 }
 
-.settings-btn {
-    background:transparent;
-    border:1px solid white;
-    color:white;
-    padding:8px 14px;
-    cursor:pointer;
-    border-radius: 6px;
-    transition: all 0.3s;
-}
 
-.settings-btn:hover {
-    background:rgba(255,255,255,0.1);
-}
 
 #settings-panel {
-    position:absolute;
-    top:60px;
-    right:20px;
-    background:rgba(0,0,0,0.9);
+    position:relative;
+    background:rgba(0,0,0,0.5);
     backdrop-filter: blur(10px);
     padding:15px;
     border-radius:10px;
     display:none;
-    width:250px;
-    border: 1px solid rgba(255,255,255,0.1);
+    width:100%;
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-top:10px;
+    max-height:400px;
+    overflow-y:auto;
 }
 
 #settings-panel h4 {
-    color: #ffd700;
+    color: #3498db;
     margin-bottom: 10px;
 }
 
@@ -213,7 +201,7 @@ header b {
     width:100%;
     padding:8px;
     margin:5px 0;
-    background:rgba(255,255,255,0.1);
+    background:rgba(52, 152, 219, 0.3);
     border:none;
     color:white;
     cursor:pointer;
@@ -222,7 +210,7 @@ header b {
 }
 
 .theme-option:hover {
-    background:rgba(255,255,255,0.2);
+    background:rgba(52, 152, 219, 0.5);
 }
 
 #settings-panel label {
@@ -246,7 +234,7 @@ header b {
 
 #settings-panel hr {
     border: none;
-    border-top: 1px solid rgba(255,255,255,0.2);
+    border-top: 1px solid rgba(255,255,255,0.05);
     margin: 10px 0;
 }
 
@@ -257,6 +245,7 @@ header b {
     display:flex;
     flex-direction:column;
     gap: 12px;
+    background:rgba(0,0,0,0.2);
 }
 
 .chat-feed::-webkit-scrollbar {
@@ -269,13 +258,13 @@ header b {
 }
 
 .chat-feed::-webkit-scrollbar-thumb {
-    background: rgba(108, 92, 231, 0.5);
+    background: rgba(52, 152, 219, 0.4);
     border-radius: 10px;
 }
 
 .chat-feed::-webkit-scrollbar-thumb:hover {
-    background: rgba(108, 92, 231, 0.8);
-}
+    background: rgba(52, 152, 219, 0.7);
+}}
 
 .message {
     max-width:70%;
@@ -297,15 +286,15 @@ header b {
 }
 
 .message.user {
-    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    background: rgba(52, 152, 219, 0.6);
     align-self:flex-end;
     border-radius: 18px 18px 5px 18px;
 }
 
 .message.ai {
-    background:rgba(255,255,255,0.1);
+    background:rgba(52, 152, 219, 0.2);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(52, 152, 219, 0.3);
     align-self: flex-start;
     border-radius: 18px 18px 18px 5px;
 }
@@ -336,10 +325,7 @@ header b {
 
 .welcome h2 {
     font-size: 2em;
-    background: linear-gradient(135deg, #ffd700, #ffed4e);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #3498db;
 }
 
 .welcome p {
@@ -348,31 +334,34 @@ header b {
 }
 
 .input-wrapper {
-    padding:15px 20px;
-    background:rgba(0,0,0,0.3);
-    border-top: 1px solid rgba(255,255,255,0.1);
+    padding:20px 30px;
+    background:rgba(0,0,0,0.2);
+    border-top: 1px solid rgba(255,255,255,0.05);
 }
 
 .input-bar {
     display:flex;
-    gap: 10px;
+    gap: 15px;
+    align-items: flex-end;
 }
 
 .input-field {
     flex:1;
-    padding:12px 15px;
+    padding:15px 20px;
     border:none;
     border-radius:20px;
     background:rgba(255,255,255,0.1);
     color:white;
-    font-size: 1em;
+    font-size: 1.05em;
     transition: all 0.3s;
+    min-height: 50px;
+    resize: vertical;
 }
 
 .input-field:focus {
     outline: none;
     background:rgba(255,255,255,0.15);
-    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.3);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
 }
 
 .input-field::placeholder {
@@ -380,10 +369,10 @@ header b {
 }
 
 .send-btn {
-    padding:10px 20px;
+    padding:12px 25px;
     border:none;
     border-radius:20px;
-    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    background: #3498db;
     color:white;
     cursor:pointer;
     font-weight: bold;
@@ -391,11 +380,13 @@ header b {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 50px;
 }
 
 .send-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(108, 92, 231, 0.3);
+    background: #2980b9;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
 }
 
 .send-btn:active {
@@ -463,7 +454,7 @@ header b {
     <div id="loginBox">
         <!-- LOGIN MODE -->
         <div id="loginMode" style="display:block;">
-            <h2>🔥 Infini Think</h2>
+            <h2>Infini Think</h2>
             <p style="color:#a29bfe; margin-bottom:20px; font-size:0.9em;">Existing User Login</p>
             <input type="text" id="loginUsername" placeholder="Username" style="display:block; width:100%;">
             <input type="password" id="loginPassword" placeholder="Password" style="display:block; width:100%; margin-top:10px;">
@@ -474,7 +465,7 @@ header b {
 
         <!-- REGISTER MODE -->
         <div id="registerMode" style="display:none;">
-            <h2>🔥 Infini Think</h2>
+            <h2>Infini Think</h2>
             <p style="color:#a29bfe; margin-bottom:20px; font-size:0.9em;">Create New Account</p>
             <input type="text" id="regUsername" placeholder="Username" style="display:block; width:100%;">
             <input type="email" id="regEmail" placeholder="Email Address" style="display:block; width:100%; margin-top:10px;">
@@ -506,62 +497,59 @@ header b {
                 <i class="fas fa-history"></i> <span>History</span>
             </button>
 
-            <button class="brand-btn jolly" onclick="showSystemPrompt()" title="AI Settings">
+            <button class="brand-btn jolly" onclick="toggleSettings()" title="Settings">
                 <i class="fas fa-cog"></i> <span>Settings</span>
             </button>
+
+            <div id="settings-panel">
+                <h4>Appearance</h4>
+
+                <button class="theme-option" onclick="changeBg('galaxy')">
+                    <i class="fas fa-galaxy"></i> Galaxy
+                </button>
+                <button class="theme-option" onclick="changeBg('sunset')">
+                    <i class="fas fa-sun"></i> Sunset
+                </button>
+                <button class="theme-option" onclick="changeBg('matrix')">
+                    <i class="fas fa-code"></i> Matrix
+                </button>
+
+                <hr>
+
+                <label>
+                    <i class="fas fa-palette"></i> Background
+                    <input type="color" id="bgColorPicker" value="#1b2735">
+                </label>
+
+                <label>
+                    <input type="checkbox" id="starsToggle" checked>
+                    Show Stars
+                </label>
+
+                <hr>
+
+                <h4 style="margin-top: 15px; color: #00cec9;">Status</h4>
+                <p style="font-size: 0.9em; color: #dfe6e9; margin-top: 8px;">
+                    <span id="statusText">Connected</span>
+                </p>
+
+                <hr>
+
+                <button class="theme-option" onclick="logout()" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f); border:none; margin-top:10px;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
         </aside>
 
         <!-- CHAT AREA -->
         <main>
             <header>
-                <div><b>🔥 Infini Think</b></div>
-                <button class="settings-btn" onclick="toggleSettings()">
-                    <i class="fas fa-sliders-h"></i> Settings
-                </button>
-
-                <div id="settings-panel">
-                    <h4>⚙️ Appearance</h4>
-
-                    <button class="theme-option" onclick="changeBg('galaxy')">
-                        <i class="fas fa-galaxy"></i> Galaxy
-                    </button>
-                    <button class="theme-option" onclick="changeBg('sunset')">
-                        <i class="fas fa-sun"></i> Sunset
-                    </button>
-                    <button class="theme-option" onclick="changeBg('matrix')">
-                        <i class="fas fa-code"></i> Matrix
-                    </button>
-
-                    <hr>
-
-                    <label>
-                        <i class="fas fa-palette"></i> Background
-                        <input type="color" id="bgColorPicker" value="#1b2735">
-                    </label>
-
-                    <label>
-                        <input type="checkbox" id="starsToggle" checked>
-                        ✨ Show Stars
-                    </label>
-
-                    <hr>
-
-                    <h4 style="margin-top: 15px; color: #00cec9;">ℹ️ Status</h4>
-                    <p style="font-size: 0.9em; color: #dfe6e9; margin-top: 8px;">
-                        <span id="statusText">✅ Connected</span>
-                    </p>
-
-                    <hr>
-
-                    <button class="theme-option" onclick="logout()" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f); border:none; margin-top:10px;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
+                <div><b>Infini Think</b></div>
             </header>
 
             <div class="chat-feed" id="chatFeed">
                 <div class="welcome">
-                    <h2>🔥 Infini Think</h2>
+                    <h2>Infini Think</h2>
                     <p>Your personal AI assistant is ready</p>
                 </div>
             </div>
@@ -569,7 +557,7 @@ header b {
             <div class="input-wrapper">
                 <div class="input-bar">
                     <input type="text" id="userInput" class="input-field" placeholder="Ask something...">
-                    <button class="send-btn" onclick="sendMessage(); return false;">
+                    <button class="send-btn" type="button" onclick="sendMessage(); return false;">
                         <i class="fas fa-paper-plane"></i> <span>Send</span>
                     </button>
                 </div>
@@ -643,7 +631,9 @@ document.addEventListener('keypress', (e) => {
         } else if (registerMode && registerMode.style.display !== "none") {
             registerUser(e);
         } else if (userInput && userInput === document.activeElement) {
-            sendMessage();
+            e.preventDefault();
+            e.stopPropagation();
+            sendMessage(e);
         }
     }
 });
@@ -864,12 +854,16 @@ async function loadChatHistory() {
 }
 
 /* CHAT */
-async function sendMessage(){
+async function sendMessage(e){
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     console.log('📤 sendMessage called');
     const input = document.getElementById("userInput");
     if(!input) {
         console.error('❌ userInput element not found');
-        return;
+        return false;
     }
     
     if(input.value.trim() === "") {
