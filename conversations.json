@@ -57,5 +57,94 @@
     "messages": [],
     "created_at": "2026-02-14 13:17:25.546229",
     "updated_at": "2026-02-14 13:17:25.546255"
+  },
+  {
+    "id": "a7e28bc0-2b6a-47c0-97b5-088593cb628b",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 13:27:18.185413",
+    "updated_at": "2026-02-14 13:27:18.185436"
+  },
+  {
+    "id": "e079fec7-bf13-4e58-8088-a422bb3221ea",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 13:29:43.447938",
+        "user": "hi",
+        "ai": "Hi! How's your day going so far?"
+      },
+      {
+        "timestamp": "2026-02-14 13:30:10.727585",
+        "user": "tell me about abdul kalam",
+        "ai": "Dr. APJ Abdul Kalam: India's 11th President, scientist, and author. He's known as the \"Missile Man\" for his work on India's space program. Kalam was a humble and inspiring leader who advocated for education and innovation."
+      }
+    ],
+    "created_at": "2026-02-14 13:29:41.599968",
+    "updated_at": "2026-02-14 13:30:10.727964"
+  },
+  {
+    "id": "d0574169-0677-405d-b26c-286fe032da85",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 13:31:32.277745",
+    "updated_at": "2026-02-14 13:31:32.277761"
+  },
+  {
+    "id": "0efbc095-0c34-4114-832a-a2a6bd098347",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 13:31:42.968634",
+        "user": "hi",
+        "ai": "Hello again! Need help with something or just want to chat?"
+      }
+    ],
+    "created_at": "2026-02-14 13:31:41.176535",
+    "updated_at": "2026-02-14 13:31:42.969216"
+  },
+  {
+    "id": "728e05bb-65de-428c-b3ea-838aa6e807b6",
+    "title": "hio",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 13:31:58.116880",
+        "user": "hio",
+        "ai": "Hi! How's your day going?"
+      }
+    ],
+    "created_at": "2026-02-14 13:31:55.592339",
+    "updated_at": "2026-02-14 13:31:58.117319"
+  },
+  {
+    "id": "d68dece5-f7db-4868-8658-fbde1dfcf69f",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 13:36:11.774663",
+        "user": "hi",
+        "ai": "Hi again! What's new with you?"
+      },
+      {
+        "timestamp": "2026-02-14 13:36:22.083863",
+        "user": "hello",
+        "ai": "Hello! Ready to talk about something or just saying hi?"
+      }
+    ],
+    "created_at": "2026-02-14 13:36:10.206702",
+    "updated_at": "2026-02-14 13:36:22.084690"
+  },
+  {
+    "id": "b6f1c7d0-966b-4627-86d1-124691be4076",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 13:38:11.996413",
+        "user": "hi",
+        "ai": "Hi! What's on your mind today?"
+      }
+    ],
+    "created_at": "2026-02-14 13:38:10.612302",
+    "updated_at": "2026-02-14 13:38:11.996989"
   }
 ]
