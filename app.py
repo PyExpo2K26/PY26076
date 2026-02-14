@@ -453,16 +453,22 @@ def process_query(text):
         context = load_context()
         reply = get_infini_think_reply(text, context)
         
+        # Log what we got
+        logger.info(f"[process_query] Got reply: {reply[:60] if reply else 'None'}...")
+        
         # If the API gave nothing, use a backup
-        if not reply:
+        if not reply or not reply.strip():
+            logger.warning("API returned empty response, using mock response")
             reply = random.choice(MOCK_RESPONSES)
-            logger.warning("Using mock response due to API failure")
         
         # Clean up any AI-style thought marks like *thinking*
         cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
         
         if not cleaned_reply:
+            logger.warning("Cleaned reply is empty, using mock response")
             cleaned_reply = random.choice(MOCK_RESPONSES)
+        
+        logger.info(f"[process_query] Returning: {cleaned_reply[:60]}...")
         
         # Save this interaction
         save_to_json(text, cleaned_reply)
@@ -470,7 +476,9 @@ def process_query(text):
         
     except Exception as e:
         logger.error(f"process_query error: {e}")
-        return random.choice(MOCK_RESPONSES)
+        fallback = random.choice(MOCK_RESPONSES)
+        logger.info(f"[process_query] Returning fallback: {fallback}")
+        return fallback
 
 # --- Routes ---
 @app.route('/')
@@ -492,23 +500,34 @@ def chat():
     try:
         data = request.get_json()
         if not data or 'message' not in data:
+            logger.error("Chat request missing message field")
             return jsonify({'error': 'No message provided', 'success': False}), 400
             
         user_message = sanitize_input(data.get('message', '')).strip()
         conversation_id = data.get('conversation_id', 'default')
         
         if not user_message:
+            logger.error("User message is empty after sanitization")
             return jsonify({'error': 'Message cannot be empty', 'success': False}), 400
         
+        logger.info(f"[Chat API] Processing message: {user_message[:50]}...")
+        
         reply = process_query(user_message)
+        
+        logger.info(f"[Chat API] Got reply: {reply[:60]}...")
+        
+        if not reply:
+            logger.error("[Chat API] process_query returned empty response!")
+            reply = "I'm having trouble processing your request. Please try again."
         
         # Store message in conversation
         add_message_to_conversation(conversation_id, user_message, reply)
         
+        logger.info(f"[Chat API] Returning success with reply length: {len(reply)}")
         return jsonify({'reply': reply, 'conversation_id': conversation_id, 'success': True})
     except Exception as e:
         logger.error(f"Chat endpoint error: {str(e)}")
-        return jsonify({'error': 'Failed to process message', 'success': False}), 500
+        return jsonify({'error': 'Failed to process message: ' + str(e), 'success': False}), 500
 
 @app.route('/api/console/status', methods=['GET'])
 def console_status():
@@ -693,6 +712,33 @@ def delete_conversation(conversation_id):
         
         return jsonify({'message': 'Conversation deleted', 'success': True})
     except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/test-response', methods=['POST'])
+def test_response():
+    """Test endpoint to diagnose response issues"""
+    try:
+        data = request.get_json()
+        test_message = data.get('message', 'Hello, are you working?') if data else 'Hello, are you working?'
+        
+        logger.info(f"[Test Response] Testing with message: {test_message}")
+        
+        # Test getting a response
+        response = process_query(test_message)
+        
+        logger.info(f"[Test Response] Got response: {response}")
+        
+        return jsonify({
+            'test_message': test_message,
+            'response': response,
+            'response_length': len(response) if response else 0,
+            'response_empty': not response or not response.strip(),
+            'groq_key_set': bool(GROQ_API_KEY and GROQ_API_KEY != ''),
+            'hf_token_set': bool(HF_TOKEN and HF_TOKEN != ''),
+            'success': True
+        })
+    except Exception as e:
+        logger.error(f"Test response error: {str(e)}")
         return jsonify({'error': str(e), 'success': False}), 500
 
 if __name__ == '__main__':

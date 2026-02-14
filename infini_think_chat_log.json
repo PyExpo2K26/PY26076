@@ -63,5 +63,20 @@
     "timestamp": "2026-02-14 09:57:51.196438",
     "user": "Hello!",
     "infini_think": "Hello! Let's start fresh. What's on your mind?"
+  },
+  {
+    "timestamp": "2026-02-14 10:13:56.518570",
+    "user": "hi",
+    "infini_think": "Hi! How's your day going so far?"
+  },
+  {
+    "timestamp": "2026-02-14 10:17:47.949650",
+    "user": "hi",
+    "infini_think": "Hi again! Need help with something or just chatting?"
+  },
+  {
+    "timestamp": "2026-02-14 10:18:10.171656",
+    "user": "hello",
+    "infini_think": "Hello! Want to talk about something specific or just say hello?"
   }
 ]

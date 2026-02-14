@@ -29,5 +29,65 @@
     ],
     "created_at": "2026-02-14 09:21:10.296080",
     "updated_at": "2026-02-14 09:57:51.206538"
+  },
+  {
+    "id": "9a37a549-9d14-4760-ad89-722fe17ea0cb",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:13:51.775815",
+    "updated_at": "2026-02-14 10:13:51.775826"
+  },
+  {
+    "id": "683e19ef-6d81-4e2a-9b99-ba9d8b4c735f",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:13:56.528457",
+        "user": "hi",
+        "ai": "Hi! How's your day going so far?"
+      }
+    ],
+    "created_at": "2026-02-14 10:13:55.187615",
+    "updated_at": "2026-02-14 10:13:56.529819"
+  },
+  {
+    "id": "ff2e509b-e71e-4fc6-9bb7-2cf8d8b3ab0c",
+    "title": "hello",
+    "messages": [],
+    "created_at": "2026-02-14 10:17:41.736570",
+    "updated_at": "2026-02-14 10:17:41.736580"
+  },
+  {
+    "id": "c18e4ea0-ccd9-4cd5-9206-6b7b98eb9f72",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:17:47.960000",
+        "user": "hi",
+        "ai": "Hi again! Need help with something or just chatting?"
+      }
+    ],
+    "created_at": "2026-02-14 10:17:46.262036",
+    "updated_at": "2026-02-14 10:17:47.961648"
+  },
+  {
+    "id": "52dfb1ca-58d5-4568-9487-6df309eac4a9",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:18:04.990782",
+    "updated_at": "2026-02-14 10:18:04.990792"
+  },
+  {
+    "id": "597c7d3c-e132-4fee-bfae-c5aab78e15b8",
+    "title": "hello",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:18:10.186086",
+        "user": "hello",
+        "ai": "Hello! Want to talk about something specific or just say hello?"
+      }
+    ],
+    "created_at": "2026-02-14 10:18:08.586621",
+    "updated_at": "2026-02-14 10:18:10.188206"
   }
 ]
