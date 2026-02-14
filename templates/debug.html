@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infini Think - Debug Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1e;
+            color: #dfe6e9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.5);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h1 { color: #ffd700; }
+        h2 { color: #a29bfe; margin-top: 20px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .status.ok { background: rgba(0,200,100,0.2); color: #00c864; }
+        .status.error { background: rgba(200,0,0,0.2); color: #ff6b6b; }
+        .status.warning { background: rgba(200,150,0,0.2); color: #ffa500; }
+        button {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 1em;
+        }
+        button:hover { opacity: 0.8; }
+        .clear-btn { background: linear-gradient(135deg, #ff6b6b, #ee5a6f); }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 3px solid #6c5ce7;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔥 Infini Think - Debug Info</h1>
+    
+    <h2>🔍 System Status</h2>
+    
+    <div id="status"></div>
+    
+    <h2>🛠️ Quick Fixes</h2>
+    
+    <h3>Option 1: Clear Local Storage (Recommended)</h3>
+    <p>This will clear any corrupted session data:</p>
+    <button onclick="clearStorage()">🗑️ Clear Local Storage</button>
+    
+    <h3>Option 2: Manual Browser Steps</h3>
+    <ol>
+        <li>Open DevTools: Press <code>F12</code></li>
+        <li>Go to <strong>Application</strong> tab</li>
+        <li>Click <strong>Local Storage</strong> on the left</li>
+        <li>Select <strong>http://localhost:5000</strong></li>
+        <li>Delete <code>currentUser</code> entry</li>
+        <li>Delete <code>loginTime</code> entry</li>
+        <li>Refresh page: <code>Ctrl+R</code></li>
+    </ol>
+    
+    <h3>Option 3: Reset Everything</h3>
+    <p>This will clear ALL local storage for this site:</p>
+    <button onclick="nukeStorage()" class="clear-btn">⚠️ Full Reset</button>
+    
+    <h2>📋 Debug Information</h2>
+    <pre id="debug"></pre>
+    
+    <h2>✅ Verification Checklist</h2>
+    <ul>
+        <li id="check1">✓ Checking page elements...</li>
+        <li id="check2">✓ Checking localStorage...</li>
+        <li id="check3">✓ Checking server...</li>
+    </ul>
+    
+    <h2>🔗 Quick Links</h2>
+    <p>
+        <a href="http://localhost:5000/" style="color: #00cec9; text-decoration: none;">
+            ↩️ Back to Login
+        </a>
+    </p>
+</div>
+
+<script>
+function updateStatus() {
+    let html = '';
+    
+    // Check page elements
+    const loginPage = document.querySelector('body');
+    const hasLoginPage = !!document.getElementById('loginPage');
+    
+    html += hasLoginPage 
+        ? '<div class="status ok">✅ Page elements found</div>'
+        : '<div class="status error">❌ Page elements missing</div>';
+    
+    // Check localStorage
+    const currentUser = localStorage.getItem('currentUser');
+    const loginTime = localStorage.getItem('loginTime');
+    
+    html += currentUser
+        ? `<div class="status warning">⚠️ Found session: ${currentUser} (logged in at ${loginTime})</div>`
+        : '<div class="status ok">✅ No active session</div>';
+    
+    // Check storage space
+    const storageSize = new Blob(Object.values(localStorage)).size;
+    html += `<div class="status warning">ℹ️ Local storage size: ${(storageSize / 1024).toFixed(2)} KB</div>`;
+    
+    document.getElementById('status').innerHTML = html;
+}
+
+function updateDebugInfo() {
+    let debug = 'LocalStorage Contents:\n';
+    debug += '─────────────────────\n';
+    
+    if (localStorage.length === 0) {
+        debug += '(empty)\n';
+    } else {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            debug += `${key}: ${value}\n`;
+        }
+    }
+    
+    debug += '\n\nPage Info:\n';
+    debug += '─────────────────────\n';
+    debug += `URL: ${window.location.href}\n`;
+    debug += `Browser: ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Unknown'}\n`;
+    debug += `Timestamp: ${new Date().toLocaleString()}\n`;
+    debug += `LocalStorage Available: ${typeof(Storage) !== 'undefined' ? 'Yes' : 'No'}\n`;
+    
+    document.getElementById('debug').textContent = debug;
+}
+
+function clearStorage() {
+    if (confirm('Clear currentUser and loginTime?')) {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('loginTime');
+        alert('✅ Cleared! Redirecting to login...');
+        setTimeout(() => {
+            window.location.href = 'http://localhost:5000/';
+        }, 500);
+    }
+}
+
+function nukeStorage() {
+    if (confirm('⚠️ This will clear ALL local storage. Continue?')) {
+        if (confirm('Are you absolutely sure?')) {
+            localStorage.clear();
+            alert('✅ All local storage cleared! Redirecting...');
+            setTimeout(() => {
+                window.location.href = 'http://localhost:5000/';
+            }, 500);
+        }
+    }
+}
+
+// Run on load
+window.addEventListener('DOMContentLoaded', () => {
+    updateStatus();
+    updateDebugInfo();
+});
+</script>
+
+</body>
+</html>

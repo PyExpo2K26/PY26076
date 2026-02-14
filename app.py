@@ -477,6 +477,11 @@ def process_query(text):
 def index(): 
     return render_template('index.html')
 
+@app.route('/debug')
+def debug_page():
+    """Debug page to troubleshoot login issues"""
+    return render_template('debug.html')
+
 @app.route('/console')
 def console():
     return render_template('console.html')

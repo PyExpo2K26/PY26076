@@ -455,7 +455,7 @@ header b {
 <body>
 
 <!-- LOGIN -->
-<div id="loginPage">
+<div id="loginPage" style="display: flex !important;">
     <div id="loginBox">
         <!-- LOGIN MODE -->
         <div id="loginMode" style="display:block;">
@@ -546,6 +546,12 @@ header b {
                     <p style="font-size: 0.9em; color: #dfe6e9; margin-top: 8px;">
                         <span id="statusText">✅ Connected</span>
                     </p>
+
+                    <hr>
+
+                    <button class="theme-option" onclick="logout()" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f); border:none; margin-top:10px;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
                 </div>
             </header>
 
@@ -594,20 +600,32 @@ let currentConversationId = null;
 window.addEventListener('DOMContentLoaded', () => {
     console.log('🔥 Infini Think page loaded');
     
+    // Get page elements
+    const loginPage = document.getElementById("loginPage");
+    const mainPage = document.getElementById("mainPage");
+    
+    // Ensure they exist
+    if (!loginPage || !mainPage) {
+        console.error('❌ Missing page elements!');
+        return;
+    }
+    
     // Check if user is already logged in
     const currentUser = localStorage.getItem('currentUser');
     if (currentUser) {
         console.log('✅ User already logged in:', currentUser);
-        const loginPage = document.getElementById("loginPage");
-        const mainPage = document.getElementById("mainPage");
-        if (loginPage && mainPage) {
-            loginPage.style.display = "none";
-            mainPage.style.display = "block";
-            setTimeout(() => {
-                const userInput = document.getElementById("userInput");
-                if (userInput) userInput.focus();
-            }, 100);
-        }
+        loginPage.style.display = "none";
+        mainPage.style.display = "block";
+        setTimeout(() => {
+            const userInput = document.getElementById("userInput");
+            if (userInput) userInput.focus();
+        }, 100);
+    } else {
+        console.log('📝 No user logged in, showing login page');
+        loginPage.style.display = "flex";
+        mainPage.style.display = "none";
+    }
+});
     }
 });
 
@@ -639,6 +657,24 @@ function switchToLogin() {
     document.getElementById("registerMode").style.display = "none";
     document.getElementById("loginMode").style.display = "block";
     document.getElementById("loginError").style.display = "none";
+}
+
+function logout() {
+    // Clear session
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('loginTime');
+    
+    // Show login page
+    document.getElementById("loginPage").style.display = "flex";
+    document.getElementById("mainPage").style.display = "none";
+    
+    // Clear inputs
+    document.getElementById("loginUsername").value = "";
+    document.getElementById("loginPassword").value = "";
+    document.getElementById("loginError").textContent = "";
+    document.getElementById("loginError").style.display = "none";
+    
+    console.log('✅ Logged out');
 }
 
 function validateEmail(email) {
