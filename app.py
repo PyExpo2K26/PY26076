@@ -6,12 +6,16 @@ import re
 import random
 import requests
 from datetime import datetime
+import uuid
+import hashlib
 
 app = Flask(__name__, template_folder='templates', static_folder='static', static_url_path='/static')
 CORS(app)
 
 # --- CONFIG ---
 HISTORY_FILE = "infini_think_chat_log.json"
+CONVERSATIONS_FILE = "conversations.json"
+CREDENTIALS_FILE = "user_credentials.json"
 MAX_HISTORY = 6
 
 # Groq API Configuration
@@ -64,6 +68,177 @@ def save_to_json(user_text, reply_text):
     # Keep file size manageable
     with open(HISTORY_FILE, "w", encoding="utf-8") as file:
         json.dump(data[-50:], file, indent=2, ensure_ascii=False)
+
+# --- Migrate legacy users (convert users without passwords) ---
+def migrate_legacy_users():
+    """Convert legacy users without passwords to use default password"""
+    try:
+        credentials = load_all_credentials()
+        updated = False
+        for user in credentials:
+            if "password" not in user:
+                # Set a temporary default password for migration
+                user["password"] = hash_password("default123")  # User should update on first login
+                updated = True
+        
+        if updated:
+            with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                json.dump(credentials, file, indent=2, ensure_ascii=False)
+            print("[INFO] Legacy users migrated successfully")
+    except Exception as e:
+        print(f"[WARNING] Failed to migrate legacy users: {e}")
+
+# --- Load all credentials ---
+def load_all_credentials():
+    if os.path.exists(CREDENTIALS_FILE):
+        try:
+            with open(CREDENTIALS_FILE, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except: pass
+    return []
+
+# --- Hash password ---
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# --- Check if user exists ---
+def user_exists(username):
+    credentials = load_all_credentials()
+    return any(c["username"].lower() == username.lower() for c in credentials)
+
+# --- Check if email exists ---
+def email_exists(email):
+    credentials = load_all_credentials()
+    return any(c["email"].lower() == email.lower() for c in credentials)
+
+# --- Validate email format ---
+def is_valid_email(email):
+    if not email or len(email.strip()) == 0:
+        return False
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email.strip(), re.IGNORECASE) is not None
+
+# --- Register new user ---
+def register_user(username, email, password):
+    # Validate inputs
+    if not username or not email or not password:
+        return {'success': False, 'error': 'All fields are required!'}
+    
+    username = username.strip()
+    email = email.strip()
+    
+    if len(username) < 3:
+        return {'success': False, 'error': 'Username must be at least 3 characters!'}
+    
+    if len(password) < 6:
+        return {'success': False, 'error': 'Password must be at least 6 characters!'}
+    
+    if not is_valid_email(email):
+        return {'success': False, 'error': 'Invalid email address!'}
+    
+    if user_exists(username):
+        return {'success': False, 'error': 'Username already taken!'}
+    
+    if email_exists(email):
+        return {'success': False, 'error': 'Email already registered!'}
+    
+    credentials = load_all_credentials()
+    credentials.append({
+        "username": username,
+        "email": email,
+        "password": hash_password(password),
+        "created_at": str(datetime.now()),
+        "last_login": str(datetime.now())
+    })
+    
+    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+        json.dump(credentials, file, indent=2, ensure_ascii=False)
+    
+    return {'success': True, 'message': 'User registered successfully!'}
+
+# --- Verify user login ---
+def verify_user_login(username, password):
+    credentials = load_all_credentials()
+    
+    for user in credentials:
+        if user["username"].lower() == username.lower():
+            # Check if user has a password field (handle legacy users)
+            if "password" not in user:
+                # Legacy user without password - set one for future logins
+                user["password"] = hash_password(password)
+                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                    json.dump(credentials, file, indent=2, ensure_ascii=False)
+                # Allow login for legacy users
+                user["last_login"] = str(datetime.now())
+                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                    json.dump(credentials, file, indent=2, ensure_ascii=False)
+                return {'success': True, 'username': user['username'], 'message': 'Welcome! Your password has been set.'}
+            
+            if user["password"] == hash_password(password):
+                # Update last login
+                user["last_login"] = str(datetime.now())
+                with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+                    json.dump(credentials, file, indent=2, ensure_ascii=False)
+                return {'success': True, 'username': user['username']}
+            else:
+                return {'success': False, 'error': 'Invalid password!'}
+    
+    return {'success': False, 'error': 'Username not found!'}
+
+# --- Manage Conversations (Separate Chat Sessions) ---
+def load_all_conversations():
+    if os.path.exists(CONVERSATIONS_FILE):
+        try:
+            with open(CONVERSATIONS_FILE, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except: pass
+    return []
+
+def save_conversation(conversation_id, title, messages):
+    conversations = load_all_conversations()
+    
+    # Check if conversation exists
+    existing = [c for c in conversations if c["id"] == conversation_id]
+    if existing:
+        existing[0]["title"] = title
+        existing[0]["messages"] = messages
+        existing[0]["updated_at"] = str(datetime.now())
+    else:
+        conversations.append({
+            "id": conversation_id,
+            "title": title,
+            "messages": messages,
+            "created_at": str(datetime.now()),
+            "updated_at": str(datetime.now())
+        })
+    
+    with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as file:
+        json.dump(conversations, file, indent=2, ensure_ascii=False)
+
+def get_conversation(conversation_id):
+    conversations = load_all_conversations()
+    for conv in conversations:
+        if conv["id"] == conversation_id:
+            return conv
+    return None
+
+def add_message_to_conversation(conversation_id, user_msg, ai_msg):
+    conversation = get_conversation(conversation_id)
+    if conversation:
+        conversation["messages"].append({
+            "timestamp": str(datetime.now()),
+            "user": user_msg,
+            "ai": ai_msg
+        })
+        save_conversation(conversation_id, conversation["title"], conversation["messages"])
+    else:
+        # Create new conversation with first message
+        title = user_msg[:50] if len(user_msg) > 50 else user_msg
+        save_conversation(conversation_id, title, [{
+            "timestamp": str(datetime.now()),
+            "user": user_msg,
+            "ai": ai_msg
+        }])
 
 # --- Groq API Call ---
 def get_groq_response(prompt, context_messages):
@@ -233,9 +408,14 @@ def chat():
         return jsonify({'error': 'No message provided', 'success': False}), 400
         
     user_message = data.get('message', '').strip()
+    conversation_id = data.get('conversation_id', 'default')
+    
     reply = process_query(user_message)
     
-    return jsonify({'reply': reply, 'success': True})
+    # Store message in conversation
+    add_message_to_conversation(conversation_id, user_message, reply)
+    
+    return jsonify({'reply': reply, 'conversation_id': conversation_id, 'success': True})
 
 @app.route('/api/console/status', methods=['GET'])
 def console_status():
@@ -313,6 +493,107 @@ def console_clear():
     except Exception as e:
         return jsonify({'error': str(e), 'success': False}), 500
 
+@app.route('/api/save-credentials', methods=['POST'])
+def check_user():
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'error': 'Username required', 'success': False}), 400
+        
+        exists = user_exists(username)
+        return jsonify({'exists': exists, 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/get-credentials', methods=['GET'])
+def get_user_credentials():
+    try:
+        credentials = load_all_credentials()
+        return jsonify({'credentials': credentials, 'count': len(credentials), 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '').strip()
+        
+        if not username or not email or not password:
+            return jsonify({'error': 'All fields are required', 'success': False}), 400
+        
+        result = register_user(username, email, password)
+        return jsonify(result), (200 if result['success'] else 400)
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        
+        if not username or not password:
+            return jsonify({'error': 'Username and password are required', 'success': False}), 400
+        
+        result = verify_user_login(username, password)
+        return jsonify(result), (200 if result['success'] else 401)
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/conversations', methods=['GET'])
+def get_conversations():
+    try:
+        conversations = load_all_conversations()
+        # Return only metadata, not full messages
+        result = [{'id': c['id'], 'title': c['title'], 'created_at': c['created_at'], 'updated_at': c['updated_at']} for c in conversations]
+        return jsonify({'conversations': result, 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/conversation/<conversation_id>', methods=['GET'])
+def get_conversation_detail(conversation_id):
+    try:
+        conversation = get_conversation(conversation_id)
+        if conversation:
+            return jsonify({'conversation': conversation, 'success': True})
+        else:
+            return jsonify({'error': 'Conversation not found', 'success': False}), 404
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/conversation', methods=['POST'])
+def create_conversation():
+    try:
+        data = request.get_json()
+        title = data.get('title', 'New Chat')
+        conversation_id = str(uuid.uuid4())
+        
+        save_conversation(conversation_id, title, [])
+        return jsonify({'conversation_id': conversation_id, 'title': title, 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+@app.route('/api/conversation/<conversation_id>', methods=['DELETE'])
+def delete_conversation(conversation_id):
+    try:
+        conversations = load_all_conversations()
+        conversations = [c for c in conversations if c['id'] != conversation_id]
+        
+        with open(CONVERSATIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(conversations, f, indent=2, ensure_ascii=False)
+        
+        return jsonify({'message': 'Conversation deleted', 'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
 if __name__ == '__main__':
+    # Migrate legacy users without passwords
+    migrate_legacy_users()
     # Using debug=True is helpful during development
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000,host ="0.0.0.0")
