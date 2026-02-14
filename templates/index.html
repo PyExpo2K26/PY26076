@@ -81,7 +81,11 @@ body {
 }
 
 /* MAIN PAGE */
-#mainPage { display:none; height:100%; }
+#mainPage { 
+    display:none; 
+    height:100%; 
+    width: 100%;
+}
 
 /* STAR BACKGROUND */
 #star-container {
@@ -455,7 +459,7 @@ header b {
 <body>
 
 <!-- LOGIN -->
-<div id="loginPage">
+<div id="loginPage" style="display: flex !important;">
     <div id="loginBox">
         <!-- LOGIN MODE -->
         <div id="loginMode" style="display:block;">
@@ -546,6 +550,12 @@ header b {
                     <p style="font-size: 0.9em; color: #dfe6e9; margin-top: 8px;">
                         <span id="statusText">✅ Connected</span>
                     </p>
+
+                    <hr>
+
+                    <button class="theme-option" onclick="logout()" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f); border:none; margin-top:10px;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
                 </div>
             </header>
 
@@ -653,20 +663,30 @@ let blockAutoReload = false;
 window.addEventListener('DOMContentLoaded', () => {
     console.log('🔥 Infini Think page loaded');
     
+    // Get page elements
+    const loginPage = document.getElementById("loginPage");
+    const mainPage = document.getElementById("mainPage");
+    
+    // Ensure they exist
+    if (!loginPage || !mainPage) {
+        console.error('❌ Missing page elements!');
+        return;
+    }
+    
     // Check if user is already logged in
     const currentUser = localStorage.getItem('currentUser');
     if (currentUser) {
         console.log('✅ User already logged in:', currentUser);
-        const loginPage = document.getElementById("loginPage");
-        const mainPage = document.getElementById("mainPage");
-        if (loginPage && mainPage) {
-            loginPage.style.display = "none";
-            mainPage.style.display = "block";
-            setTimeout(() => {
-                const userInput = document.getElementById("userInput");
-                if (userInput) userInput.focus();
-            }, 100);
-        }
+        loginPage.style.display = "none";
+        mainPage.style.display = "flex";  // Use flex for proper layout
+        setTimeout(() => {
+            const userInput = document.getElementById("userInput");
+            if (userInput) userInput.focus();
+        }, 100);
+    } else {
+        console.log('📝 No user logged in, showing login page');
+        loginPage.style.display = "flex";
+        mainPage.style.display = "none";
     }
 });
 
@@ -710,6 +730,24 @@ function switchToLogin() {
     document.getElementById("registerMode").style.display = "none";
     document.getElementById("loginMode").style.display = "block";
     document.getElementById("loginError").style.display = "none";
+}
+
+function logout() {
+    // Clear session
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('loginTime');
+    
+    // Show login page
+    document.getElementById("loginPage").style.display = "flex";
+    document.getElementById("mainPage").style.display = "none";
+    
+    // Clear inputs
+    document.getElementById("loginUsername").value = "";
+    document.getElementById("loginPassword").value = "";
+    document.getElementById("loginError").textContent = "";
+    document.getElementById("loginError").style.display = "none";
+    
+    console.log('✅ Logged out');
 }
 
 function validateEmail(email) {
@@ -849,7 +887,7 @@ async function loginUser(event) {
             
             if (loginPage && mainPage) {
                 loginPage.style.display = "none";
-                mainPage.style.display = "block";
+                mainPage.style.display = "flex";  // Use flex for proper layout
                 
                 // Initialize the chat page
                 setTimeout(() => {
@@ -857,6 +895,13 @@ async function loginUser(event) {
                     if (userInput) {
                         userInput.focus();
                         console.log('✅ Chat page ready');
+                    }
+                    // Show welcome message
+                    const chatFeed = document.getElementById("chatFeed");
+                    if (chatFeed) {
+                        console.log('✅ chatFeed element is ready');
+                    } else {
+                        console.error('❌ chatFeed element not found!');
                     }
                 }, 100);
             } else {
@@ -891,15 +936,33 @@ async function loadChatHistory() {
 
 /* CHAT */
 async function sendMessage(){
+    console.log('📤 sendMessage called');
     const input = document.getElementById("userInput");
-    if(!input || input.value.trim() === "" || isLoading) return;
+    if(!input) {
+        console.error('❌ userInput element not found');
+        return;
+    }
+    
+    if(input.value.trim() === "") {
+        console.warn('⚠️ Empty message, not sending');
+        return;
+    }
+    
+    if(isLoading) {
+        console.warn('⚠️ Already loading, ignoring send');
+        return;
+    }
 
     const userText = input.value.trim();
+    console.log('👤 User message:', userText);
     addMessage(userText, 'user');
     
     // Clear welcome if present
     const welcome = document.querySelector('.welcome');
-    if (welcome) welcome.remove();
+    if (welcome) {
+        console.log('🗑️ Removing welcome message');
+        welcome.remove();
+    }
     
     input.value = "";
     isLoading = true;
@@ -924,20 +987,32 @@ async function sendMessage(){
         });
         
         console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('Full response data:', data);
         removeTypingIndicator(typingId);
         
-        if (data.success && data.reply) {
-            console.log('✅ Got AI response');
+        // Check if response has content
+        if (data && data.reply && data.reply.trim()) {
+            console.log('✅ Got AI response:', data.reply);
             addMessage(data.reply, 'ai');
-        } else {
+        } else if (data && data.success === false) {
             console.error('❌ API error:', data.error);
             addMessage('⚠️ Error: ' + (data.error || 'Failed to get response'), 'error');
+        } else {
+            // This shouldn't happen, but show a message to indicate we got something
+            console.warn('⚠️ Unexpected response format:', data);
+            const fallbackMsg = (data && data.reply) ? data.reply : 'I received your message but had trouble generating a response. Please try again.';
+            addMessage(fallbackMsg, 'ai');
         }
     } catch (error) {
         console.error('Chat error:', error);
         removeTypingIndicator(typingId);
-        addMessage('⚠️ Connection error. Make sure backend is running.', 'error');
+        addMessage('⚠️ Connection error. Make sure the backend is running at ' + API_BASE + '. Status: ' + error.message, 'error');
     } finally {
         isLoading = false;
         const userInput = document.getElementById("userInput");
@@ -946,6 +1021,7 @@ async function sendMessage(){
 }
 
 function addMessage(text, type='user') {
+<<<<<<< HEAD
     // Mark chat as active if user/AI messages are added to prevent auto-refresh
     if (type === 'user' || type === 'ai') {
         blockAutoReload = true;
@@ -962,44 +1038,106 @@ function addMessage(text, type='user') {
         const badge = document.createElement('div');
         badge.className = 'message-badge';
         badge.textContent = '🔥 Infini Think';
+=======
+    try {
+        const chat = document.getElementById("chatFeed");
+        if (!chat) {
+            console.error('❌ chatFeed element not found!');
+            return;
+        }
+>>>>>>> 00d444f28fa7f25e6dbefa43634d2aab46455eaa
         
-        const content = document.createElement('div');
-        content.textContent = text;
+        if (!text || !text.trim()) {
+            console.warn('⚠️ Empty text, not adding message');
+            return;
+        }
         
-        messageDiv.appendChild(badge);
-        messageDiv.appendChild(content);
-    } else if (type === 'error') {
-        messageDiv.textContent = text;
+        console.log(`📝 Adding ${type} message:`, text.substring(0, 50));
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = 'flex';
+        messageDiv.style.flexDirection = 'column';
+        
+        if (type === 'user') {
+            messageDiv.textContent = text;
+            messageDiv.style.color = 'white';
+        } else if (type === 'ai') {
+            const badge = document.createElement('div');
+            badge.className = 'message-badge';
+            badge.textContent = '🔥 Infini Think';
+            badge.style.fontWeight = 'bold';
+            badge.style.marginBottom = '5px';
+            
+            const content = document.createElement('div');
+            content.textContent = text;
+            content.style.color = 'white';
+            
+            messageDiv.appendChild(badge);
+            messageDiv.appendChild(content);
+        } else if (type === 'error') {
+            messageDiv.textContent = text;
+            messageDiv.style.color = '#ff6b6b';
+        }
+        
+        chat.appendChild(messageDiv);
+        console.log('✅ Message added to chat');
+        
+        // Scroll to bottom
+        setTimeout(() => {
+            chat.scrollTop = chat.scrollHeight;
+        }, 10);
+        
+    } catch (error) {
+        console.error('❌ Error in addMessage:', error);
     }
-    
-    chat.appendChild(messageDiv);
-    chat.scrollTop = chat.scrollHeight;
 }
 
 function showTypingIndicator() {
-    const chat = document.getElementById("chatFeed");
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message ai';
-    messageDiv.id = 'typing-indicator';
-    
-    const badge = document.createElement('div');
-    badge.className = 'message-badge';
-    badge.textContent = '🔥 Infini Think';
-    
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'typing-indicator';
-    for (let i = 0; i < 3; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'typing-dot';
-        typingDiv.appendChild(dot);
+    try {
+        const chat = document.getElementById("chatFeed");
+        if (!chat) {
+            console.error('❌ chatFeed not found for typing indicator');
+            return 'typing-indicator';
+        }
+        
+        console.log('⏳ Showing typing indicator');
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message ai';
+        messageDiv.id = 'typing-indicator';
+        messageDiv.style.display = 'flex';
+        messageDiv.style.flexDirection = 'column';
+        
+        const badge = document.createElement('div');
+        badge.className = 'message-badge';
+        badge.textContent = '🔥 Infini Think';
+        badge.style.fontWeight = 'bold';
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'typing-indicator';
+        typingDiv.style.display = 'flex';
+        typingDiv.style.gap = '4px';
+        
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'typing-dot';
+            typingDiv.appendChild(dot);
+        }
+        
+        messageDiv.appendChild(badge);
+        messageDiv.appendChild(typingDiv);
+        chat.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            chat.scrollTop = chat.scrollHeight;
+        }, 10);
+        
+        return 'typing-indicator';
+    } catch (error) {
+        console.error('❌ Error showing typing indicator:', error);
+        return 'typing-indicator';
     }
-    
-    messageDiv.appendChild(badge);
-    messageDiv.appendChild(typingDiv);
-    chat.appendChild(messageDiv);
-    chat.scrollTop = chat.scrollHeight;
-    
-    return 'typing-indicator';
 }
 
 function removeTypingIndicator(id) {

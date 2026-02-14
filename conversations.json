@@ -31,6 +31,7 @@
     "updated_at": "2026-02-14 09:57:51.206538"
   },
   {
+<<<<<<< HEAD
     "id": "6ffc88a2-fffb-46ce-859e-707fa8e22ab3",
     "title": "hello",
     "messages": [],
@@ -146,5 +147,242 @@
     ],
     "created_at": "2026-02-14 13:38:10.612302",
     "updated_at": "2026-02-14 13:38:11.996989"
+=======
+    "id": "9a37a549-9d14-4760-ad89-722fe17ea0cb",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:13:51.775815",
+    "updated_at": "2026-02-14 10:13:51.775826"
+  },
+  {
+    "id": "683e19ef-6d81-4e2a-9b99-ba9d8b4c735f",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:13:56.528457",
+        "user": "hi",
+        "ai": "Hi! How's your day going so far?"
+      }
+    ],
+    "created_at": "2026-02-14 10:13:55.187615",
+    "updated_at": "2026-02-14 10:13:56.529819"
+  },
+  {
+    "id": "ff2e509b-e71e-4fc6-9bb7-2cf8d8b3ab0c",
+    "title": "hello",
+    "messages": [],
+    "created_at": "2026-02-14 10:17:41.736570",
+    "updated_at": "2026-02-14 10:17:41.736580"
+  },
+  {
+    "id": "c18e4ea0-ccd9-4cd5-9206-6b7b98eb9f72",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:17:47.960000",
+        "user": "hi",
+        "ai": "Hi again! Need help with something or just chatting?"
+      }
+    ],
+    "created_at": "2026-02-14 10:17:46.262036",
+    "updated_at": "2026-02-14 10:17:47.961648"
+  },
+  {
+    "id": "52dfb1ca-58d5-4568-9487-6df309eac4a9",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:18:04.990782",
+    "updated_at": "2026-02-14 10:18:04.990792"
+  },
+  {
+    "id": "597c7d3c-e132-4fee-bfae-c5aab78e15b8",
+    "title": "hello",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:18:10.186086",
+        "user": "hello",
+        "ai": "Hello! Want to talk about something specific or just say hello?"
+      }
+    ],
+    "created_at": "2026-02-14 10:18:08.586621",
+    "updated_at": "2026-02-14 10:18:10.188206"
+  },
+  {
+    "id": "53216a5d-7693-4581-994e-48726b3457bf",
+    "title": "hello",
+    "messages": [],
+    "created_at": "2026-02-14 10:23:20.686487",
+    "updated_at": "2026-02-14 10:23:20.686497"
+  },
+  {
+    "id": "9172a615-5cb4-4c93-8b9a-9f1b73a5f427",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:23:26.022399",
+        "user": "hi",
+        "ai": "Hi! You're on a roll with the hellos! What's next?"
+      }
+    ],
+    "created_at": "2026-02-14 10:23:24.444473",
+    "updated_at": "2026-02-14 10:23:26.024067"
+  },
+  {
+    "id": "8cff491c-ba0e-465d-8764-6128c9771505",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:23:50.667409",
+    "updated_at": "2026-02-14 10:23:50.667418"
+  },
+  {
+    "id": "1360e07b-465b-4250-a204-e731e13aeeb2",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:23:54.849121",
+        "user": "hi",
+        "ai": "You're a hello master! Let's break the cycle, what's new with you?"
+      }
+    ],
+    "created_at": "2026-02-14 10:23:53.547114",
+    "updated_at": "2026-02-14 10:23:54.851334"
+  },
+  {
+    "id": "test",
+    "title": "Hello",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:27:36.728991",
+        "user": "Hello",
+        "ai": "One more! Okay, let's mix it up. How's your day?"
+      },
+      {
+        "timestamp": "2026-02-14 10:28:38.176707",
+        "user": "Hello",
+        "ai": "You win the hello contest! Now, what can I help you with?"
+      },
+      {
+        "timestamp": "2026-02-14 10:28:41.408215",
+        "user": "Message 1",
+        "ai": "You're switching gears. What's the message about?"
+      },
+      {
+        "timestamp": "2026-02-14 10:28:44.753628",
+        "user": "Message 2",
+        "ai": "Getting sequential! Do you want to send or receive a message?"
+      },
+      {
+        "timestamp": "2026-02-14 10:28:48.005274",
+        "user": "Message 3",
+        "ai": "You're on a roll! What's the content of Message 3?"
+      }
+    ],
+    "created_at": "2026-02-14 10:27:36.729693",
+    "updated_at": "2026-02-14 10:28:48.006761"
+  },
+  {
+    "id": "69f0c603-f1e6-41c3-aabd-a4ff4b4f34a8",
+    "title": "hi",
+    "messages": [],
+    "created_at": "2026-02-14 10:29:58.966419",
+    "updated_at": "2026-02-14 10:29:58.966430"
+  },
+  {
+    "id": "be9ca59a-6bb4-495a-9e91-29b9f7e29516",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:32:20.383995",
+        "user": "hi",
+        "ai": "Back to hello! Let's start fresh, how can I assist you today?"
+      },
+      {
+        "timestamp": "2026-02-14 10:33:01.272543",
+        "user": "how to make a powerpoint presentation",
+        "ai": "To make a PowerPoint, start with a theme, add slides, and fill with text, images, and charts. Keep it simple and engaging. Need more tips?"
+      },
+      {
+        "timestamp": "2026-02-14 10:33:11.564640",
+        "user": "yes",
+        "ai": "Use clear headings, concise text, and high-quality images. Add transitions and animations sparingly. Keep it 10-15 slides max, and practice your presentation. Want more specific tips?"
+      }
+    ],
+    "created_at": "2026-02-14 10:32:18.662069",
+    "updated_at": "2026-02-14 10:33:11.566207"
+  },
+  {
+    "id": "deb8da98-a0db-4db7-903f-6f3a0688ffe2",
+    "title": "hello!!",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:34:05.582797",
+        "user": "hello!!",
+        "ai": "Hello! I'm Infini Think, your friendly AI assistant. How can I help you today?"
+      },
+      {
+        "timestamp": "2026-02-14 10:34:31.636852",
+        "user": "hi mapla",
+        "ai": "Hi Mapla! What's on your mind? Need help or just wanna chat?"
+      },
+      {
+        "timestamp": "2026-02-14 10:35:21.618359",
+        "user": "git hub la eppadi push pannuradhu",
+        "ai": "GitHub-la push pannuradhu eppadi? \n1. Git init\n2. Git add\n3. Git commit\n4. Git remote add\n5. Git push! Simple ah?"
+      },
+      {
+        "timestamp": "2026-02-14 10:36:05.135489",
+        "user": "inum konjam simple ahh sollu enaku purila bro",
+        "ai": "Bro, GitHub push pannuradhu:\n1. Code edit\n2. Git add .\n3. Git commit -m \"msg\"\n4. Git push origin <branch>\nEasy ah?"
+      }
+    ],
+    "created_at": "2026-02-14 10:34:03.763554",
+    "updated_at": "2026-02-14 10:36:05.137115"
+  },
+  {
+    "id": "3d8caeaf-74e1-4252-b0e6-5a016bbac557",
+    "title": "hello",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 10:57:29.586678",
+        "user": "hello",
+        "ai": "Hello again! How can I help you now?"
+      }
+    ],
+    "created_at": "2026-02-14 10:57:27.788809",
+    "updated_at": "2026-02-14 10:57:29.589019"
+  },
+  {
+    "id": "9d457c87-97f8-4b01-ab1e-e209afe02221",
+    "title": "hi",
+    "messages": [
+      {
+        "timestamp": "2026-02-14 11:02:13.747923",
+        "user": "hi",
+        "ai": "Hello. How can I help you today?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:20.238612",
+        "user": "hi mapla",
+        "ai": "What's up, Mapla? Need help with something?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:31.755619",
+        "user": "eppdi irruka bro",
+        "ai": "Superb! How's life treating you, bro?"
+      },
+      {
+        "timestamp": "2026-02-14 11:02:44.781261",
+        "user": "saptiya bro",
+        "ai": "Mazha! All good, bro!"
+      },
+      {
+        "timestamp": "2026-02-14 11:03:10.499594",
+        "user": "eppdi github la push pannanum",
+        "ai": "GitHub la push pannurathu easy! \n1. Git init\n2. Add files\n3. Commit\n4. Push!"
+      }
+    ],
+    "created_at": "2026-02-14 11:02:11.156840",
+    "updated_at": "2026-02-14 11:03:10.501075"
+>>>>>>> 00d444f28fa7f25e6dbefa43634d2aab46455eaa
   }
 ]

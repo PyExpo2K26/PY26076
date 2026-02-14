@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔥 INFINI THINK - Chat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        h1, h2 {
+            color: #ff6b6b;
+            margin-top: 0;
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        .status.pass {
+            background: #4caf50;
+            color: white;
+        }
+        .status.fail {
+            background: #f44336;
+            color: white;
+        }
+        .status.pending {
+            background: #ff9800;
+            color: white;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-family: monospace;
+            min-height: 150px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        button:hover {
+            background: #ff5252;
+        }
+        .console {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #222;
+        }
+        .log-entry.info { color: #4dd0e1; }
+        .log-entry.success { color: #4caf50; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>🔥 INFINI THINK - Response Display Test</h1>
+    
+    <div class="container">
+        <!-- Test Controls -->
+        <div class="section">
+            <h2>Test Commands</h2>
+            
+            <div class="test-item">
+                <h3>Step 1: Check Server</h3>
+                <button onclick="testServer()">Check Server Health</button>
+                <div id="serverStatus" class="status pending">Not tested</div>
+            </div>
+            
+            <div class="test-item">
+                <h3>Step 2: Send Test Message</h3>
+                <input type="text" id="testMessage" placeholder="Enter test message" value="Hello, are you working?">
+                <br>
+                <button onclick="testChat()">Send Message to API</button>
+                <div id="chatStatus" class="status pending">Not tested</div>
+            </div>
+            
+            <div class="test-item">
+                <h3>Step 3: Test from UI</h3>
+                <button onclick="goToApp()">Go to Chat App (http://localhost:5000)</button>
+                <p style="font-size: 12px; color: #aaa;">Follow these steps:
+                    <br>1. Login with: TestUser / default123
+                    <br>2. Type "Hello" in chat
+                    <br>3. Click Send
+                    <br>4. Wait 3-5 seconds
+                    <br>5. Message should appear!
+                </p>
+            </div>
+        </div>
+        
+        <!-- Console Log -->
+        <div class="section">
+            <h2>Console Output</h2>
+            <div class="console" id="console"></div>
+            <button onclick="clearConsole()">Clear Console</button>
+        </div>
+    </div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const console_el = document.getElementById('console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            console_el.appendChild(entry);
+            console_el.scrollTop = console_el.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        async function testServer() {
+            const status = document.getElementById('serverStatus');
+            status.textContent = 'Testing...';
+            status.className = 'status pending';
+            
+            log('Testing server connectivity...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:5000/', {
+                    method: 'GET',
+                    mode: 'no-cors'
+                });
+                
+                log('✅ Server is running at http://localhost:5000', 'success');
+                status.textContent = '✅ Server OK';
+                status.className = 'status pass';
+            } catch (error) {
+                log('❌ Cannot reach server: ' + error.message, 'error');
+                status.textContent = '❌ Server Not Found';
+                status.className = 'status fail';
+            }
+        }
+        
+        async function testChat() {
+            const status = document.getElementById('chatStatus');
+            const message = document.getElementById('testMessage').value;
+            
+            if (!message.trim()) {
+                alert('Enter a message first!');
+                return;
+            }
+            
+            status.textContent = 'Testing...';
+            status.className = 'status pending';
+            
+            log(`Sending message: "${message}"`, 'info');
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message,
+                        conversation_id: 'test'
+                    })
+                });
+                
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+                log(`Response received in ${elapsed}s`, 'info');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.reply && data.reply.trim()) {
+                    log(`✅ API Response: ${data.reply.substring(0, 80)}...`, 'success');
+                    status.textContent = `✅ Got response (${elapsed}s)`;
+                    status.className = 'status pass';
+                } else {
+                    log('❌ API returned empty response', 'error');
+                    status.textContent = '❌ No response';
+                    status.className = 'status fail';
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                status.textContent = '❌ Error';
+                status.className = 'status fail';
+            }
+        }
+        
+        function goToApp() {
+            log('Opening chat app at http://localhost:5000/...', 'info');
+            window.open('http://localhost:5000/', '_blank');
+        }
+        
+        // Auto-check server on load
+        window.addEventListener('load', () => {
+            log('Assistant: Chat Test Page Loaded', 'info');
+            testServer();
+        });
+    </script>
+</body>
+</html>
