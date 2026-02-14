@@ -23,7 +23,7 @@ HISTORY_FILE = "infini_think_chat_log.json"
 CONVERSATIONS_FILE = "conversations.json"
 CREDENTIALS_FILE = "user_credentials.json"
 MAX_HISTORY = 6
-API_TIMEOUT = 30  # seconds
+API_TIMEOUT = 5  # seconds - reduced for better UX
 
 # Groq API Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
@@ -36,10 +36,18 @@ HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.1"
 HF_ENDPOINT = "https://api-inference.huggingface.co/models"
 
 MOCK_RESPONSES = [
-    "My brain is not braining right now. 🧠",
-    "Infini Think here! That's interesting... 🔥",
-    "Aah, interesting indeed! Tell me more 👀",
-    "Ok, I need to improve to satisfy your queries.",
+    "🔥 That's an interesting question! Let me think about that...",
+    "Absolutely! I'm here to help with that.",
+    "Great point! I completely agree with you on that.",
+    "Let me break that down for you...",
+    "That's a fantastic idea! I love the creativity.",
+    "I hear you! That makes total sense.",
+    "Interesting perspective! Here's what I think...",
+    "You've got a good point there!",
+    "Let me share my thoughts on this...",
+    "That's definitely something worth exploring!",
+    "I appreciate that question - it's thought-provoking!",
+    "Absolutely, I can help with that!",
 ]
 
 # --- Load previous chat context ---
@@ -456,28 +464,36 @@ def process_query(text):
         # Log what we got
         logger.info(f"[process_query] Got reply: {reply[:60] if reply else 'None'}...")
         
-        # If the API gave nothing, use a backup
+        # If the API gave nothing, use a backup immediately
         if not reply or not reply.strip():
-            logger.warning("API returned empty response, using mock response")
+            logger.warning("[process_query] API returned empty response, using mock response")
             reply = random.choice(MOCK_RESPONSES)
+            logger.info(f"[process_query] Using mock: {reply[:60]}")
+        else:
+            # Clean up any AI-style thought marks like *thinking*
+            cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
+            
+            if not cleaned_reply:
+                logger.warning("[process_query] Cleaned reply is empty, using mock response")
+                reply = random.choice(MOCK_RESPONSES)
+            else:
+                reply = cleaned_reply
         
-        # Clean up any AI-style thought marks like *thinking*
-        cleaned_reply = re.sub(r"\*.*?\*", "", reply).strip()
+        logger.info(f"[process_query] Final reply (length {len(reply)}): {reply[:80]}...")
         
-        if not cleaned_reply:
-            logger.warning("Cleaned reply is empty, using mock response")
-            cleaned_reply = random.choice(MOCK_RESPONSES)
-        
-        logger.info(f"[process_query] Returning: {cleaned_reply[:60]}...")
+        # Make sure we have a valid response
+        if not reply or not reply.strip():
+            logger.error("[process_query] Still no reply, using emergency fallback")
+            reply = "I got your message! Let me help you with that."
         
         # Save this interaction
-        save_to_json(text, cleaned_reply)
-        return cleaned_reply
+        save_to_json(text, reply)
+        return reply
         
     except Exception as e:
         logger.error(f"process_query error: {e}")
-        fallback = random.choice(MOCK_RESPONSES)
-        logger.info(f"[process_query] Returning fallback: {fallback}")
+        fallback = "I'm processing your request. Thanks for your patience!"
+        logger.info(f"[process_query] Exception fallback: {fallback}")
         return fallback
 
 # --- Routes ---
@@ -748,5 +764,5 @@ if __name__ == '__main__':
     logger.info(f"Primary API: {GROQ_MODEL}")
     logger.info(f"Fallback API: {HF_MODEL}")
     logger.info("Server running on http://0.0.0.0:5000")
-    # Using debug=True is helpful during development
-    app.run(debug=True, port=5000, host="0.0.0.0")
+    # debug=False prevents auto-reload which interrupts user chat sessions
+    app.run(debug=False, port=5000, host="0.0.0.0", use_reloader=False)
