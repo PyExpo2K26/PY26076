@@ -587,6 +587,65 @@ header b {
 const API_BASE = 'http://localhost:5000';
 let isLoading = false;
 let currentConversationId = null;
+// When true, the page will prompt before unloading (prevents auto-refresh)
+let blockAutoReload = false;
+
+// Aggressive live-reload / auto-refresh blockers
+(function(){
+    const noop = function(){};
+
+    // Block common location-based reloads
+    try {
+        if (window.location) {
+            window.location.reload = function(){ console.warn('Blocked: location.reload'); };
+            window.location.assign = function(url){ console.warn('Blocked: location.assign to', url); };
+            window.location.replace = function(url){ console.warn('Blocked: location.replace to', url); };
+        }
+    } catch (e) {}
+
+    // Block EventSource (used by some live-reload servers)
+    try {
+        const OrigES = window.EventSource;
+        window.EventSource = function(url, options){
+            console.warn('Blocked EventSource connection to', url);
+            return { close: noop, addEventListener: noop, removeEventListener: noop };
+        };
+        if (OrigES) window.EventSource.prototype = OrigES.prototype;
+    } catch (e) {}
+
+    // Block WebSocket-based reloads by providing a harmless stub
+    try {
+        const OrigWS = window.WebSocket;
+        window.WebSocket = function(url, protocols){
+            console.warn('Blocked WebSocket connection to', url);
+            const ws = { send: noop, close: noop, addEventListener: noop, removeEventListener: noop, onmessage: null, onopen: null, onclose: null, onerror: null, readyState: 3 };
+            setTimeout(()=>{ if (ws.onopen) ws.onopen({}); }, 10);
+            return ws;
+        };
+        if (OrigWS) window.WebSocket.prototype = OrigWS.prototype;
+    } catch (e) {}
+
+    // Remove injected script tags that look like live-reload clients
+    try {
+        const removeLiveScript = (node) => {
+            if (!node || node.tagName !== 'SCRIPT' || !node.src) return;
+            const s = node.src.toLowerCase();
+            if (s.includes('livereload') || s.includes('live-server') || s.includes('sockjs') || s.includes('socket.io') || s.includes('five-server')) {
+                console.warn('Removing live-reload script', node.src);
+                node.remove();
+            }
+        };
+
+        // Clean up any already-added scripts
+        document.querySelectorAll('script[src]').forEach(removeLiveScript);
+
+        // Observe for future injected scripts
+        const obs = new MutationObserver(muts => {
+            muts.forEach(m => m.addedNodes && m.addedNodes.forEach(removeLiveScript));
+        });
+        obs.observe(document.documentElement || document, { childList: true, subtree: true });
+    } catch (e) {}
+})();
 
 // Initialize page
 window.addEventListener('DOMContentLoaded', () => {
@@ -616,6 +675,18 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log('📝 No user logged in, showing login page');
         loginPage.style.display = "flex";
         mainPage.style.display = "none";
+    }
+});
+
+// Prevent accidental/automatic reload while a conversation is active.
+// The browser will show a confirmation dialog when the user (or an external
+// tool) attempts to reload/navigate away. The flag is set to true whenever
+// messages are exchanged so the user must confirm refresh.
+window.addEventListener('beforeunload', (e) => {
+    if (blockAutoReload) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
+        return '';
     }
 });
 
@@ -944,12 +1015,31 @@ async function sendMessage(e){
 }
 
 function addMessage(text, type='user') {
+<<<<<<< HEAD
+    // Mark chat as active if user/AI messages are added to prevent auto-refresh
+    if (type === 'user' || type === 'ai') {
+        blockAutoReload = true;
+    }
+
+    const chat = document.getElementById("chatFeed");
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    if (type === 'user') {
+        messageDiv.textContent = text;
+    } else if (type === 'ai') {
+        const badge = document.createElement('div');
+        badge.className = 'message-badge';
+        badge.textContent = '🔥 Infini Think';
+=======
     try {
         const chat = document.getElementById("chatFeed");
         if (!chat) {
             console.error('❌ chatFeed element not found!');
             return;
         }
+>>>>>>> 00d444f28fa7f25e6dbefa43634d2aab46455eaa
         
         if (!text || !text.trim()) {
             console.warn('⚠️ Empty text, not adding message');
@@ -1051,6 +1141,8 @@ function removeTypingIndicator(id) {
 
 /* SIDEBAR ACTIONS */
 function newChat() {
+    // Allow refresh again when starting a fresh chat
+    blockAutoReload = false;
     currentConversationId = null;
     document.getElementById("chatFeed").innerHTML = `
         <div class="welcome">
