@@ -41,6 +41,7 @@ Each element must have "tool" and "args" keys.
 
 Available tools:
 - open_app(app_name: str)
+- close_app(app_name: str)
 - open_folder(path: str)
 - open_file(path: str)
 - open_vscode(path: str = "")
@@ -63,6 +64,9 @@ Examples:
 
   "open notepad"
   → [{{ "tool":"open_app","args":["notepad"] }}]
+
+  "close whatsapp and open chrome"
+  → [{{ "tool":"close_app","args":["whatsapp"] }},{{ "tool":"open_app","args":["chrome"] }}]
 
   "organize downloads and open explorer"
   → [{{ "tool":"organize_downloads","args":[] }},{{ "tool":"open_folder","args":["downloads"] }}]

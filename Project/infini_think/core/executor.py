@@ -92,7 +92,7 @@ class Executor:
     def _register_default_tools(self) -> None:
         """Import and register all built-in tools."""
         # Import here to avoid circular imports at module load time
-        from infini_think.tools.app_tools import open_app, open_vscode
+        from infini_think.tools.app_tools import open_app, open_vscode, close_app
         from infini_think.tools.file_tools import (
             organize_downloads,
             create_folder,
@@ -107,6 +107,7 @@ class Executor:
         )
 
         self.register("open_app", open_app)
+        self.register("close_app", close_app)
         self.register("open_vscode", open_vscode)
         self.register("organize_downloads", organize_downloads)
         self.register("create_folder", create_folder)

@@ -75,6 +75,12 @@ _WIN_APP_MAP: dict[str, str] = {
     "microsoft teams":  "teams",
     "notion":           "notion",
     "obsidian":         "obsidian",
+    "whatsapp":         "whatsapp:",
+    "youtube":          "chrome www.youtube.com",
+    "wordpad":          "wordpad",
+    "paint 3d":         "mspaint",
+    "calendar":         "outlookcal:",
+    "mail":             "outlookmail:",
 }
 
 # Linux/macOS alias map
@@ -216,3 +222,51 @@ def open_vscode(path: str = "") -> str:
         )
     except Exception as exc:  # noqa: BLE001
         return f"Failed to open VS Code: {exc}"
+
+
+def close_app(app_name: str) -> str:
+    """Close a running application by its friendly name.
+    
+    Args:
+        app_name: The application name, e.g. ``"chrome"``, ``"notepad"``.
+
+    Returns:
+        Human-readable status string.
+    """
+    executable = _resolve_app_name(app_name)
+    system = platform.system()
+    log.info("Closing app: %r → executable=%r (platform=%s)", app_name, executable, system)
+
+    # Clean up URI schemes or arguments if they got resolved (e.g. 'whatsapp:' -> 'whatsapp')
+    clean_exec = executable.split(" ")[0].rstrip(":")
+
+    try:
+        if system == "Windows":
+            # taskkill /IM <process.exe> /F
+            # We append .exe if it doesn't have it, as taskkill stringently looks for image names
+            if not clean_exec.endswith(".exe"):
+                clean_exec += ".exe"
+            subprocess.run(
+                ["taskkill", "/IM", clean_exec, "/F"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            # pkill or killall on unix
+            subprocess.run(
+                ["pkill", "-f", clean_exec],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return f"Closed: {app_name}"
+
+    except subprocess.CalledProcessError:
+        msg = f"Could not close '{app_name}'. It may not be running."
+        log.warning(msg)
+        return msg
+    except Exception as exc:  # noqa: BLE001
+        msg = f"Failed to close '{app_name}': {exc}"
+        log.error(msg)
+        return msg

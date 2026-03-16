@@ -33,6 +33,7 @@ Your job is to convert a user's natural-language request into a JSON command.
 
 Available tools:
 - open_app(app_name: str)           — Launch an application by name
+- close_app(app_name: str)          — Close a running application by name
 - open_folder(path: str)            — Open a folder in the file explorer
 - open_file(path: str)              — Open a file with the default system application
 - open_vscode(path: str = "")       — Open VS Code (optionally at a path)
@@ -54,6 +55,7 @@ Rules:
 
 Examples:
   User: open chrome             → {"tool": "open_app", "args": ["chrome"]}
+  User: close notepad           → {"tool": "close_app", "args": ["notepad"]}
   User: open my downloads folder→ {"tool": "open_folder", "args": ["downloads"]}
   User: open desktop/report.pdf → {"tool": "open_file", "args": ["desktop/report.pdf"]}
   User: create a folder named Work → {"tool": "create_folder", "args": ["Work"]}
