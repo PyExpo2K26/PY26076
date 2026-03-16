@@ -43,7 +43,9 @@ Available tools:
 - open_app(app_name: str)
 - close_app(app_name: str)
 - open_folder(path: str)
+- close_folder(path: str)
 - open_file(path: str)
+- close_file(path: str)
 - open_vscode(path: str = "")
 - search_files(query: str)
 - create_folder(name: str)
@@ -70,6 +72,9 @@ Examples:
 
   "organize downloads and open explorer"
   → [{{ "tool":"organize_downloads","args":[] }},{{ "tool":"open_folder","args":["downloads"] }}]
+
+  "close my project document"
+  → [{{ "tool":"close_file","args":["project"] }}]
 """.format(max_steps=settings.max_plan_steps)
 
 

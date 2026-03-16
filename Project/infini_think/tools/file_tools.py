@@ -178,6 +178,130 @@ def open_file(path: str) -> str:
     return f"Opened file: {resolved.name}"
 
 
+def close_folder(path: str) -> str:
+    """Close a specific folder window in the file explorer.
+    
+    Args:
+        path: Folder path or friendly shorthand.
+        
+    Returns:
+        Human-readable status string.
+    """
+    resolved = _smart_find(path, find_dir=True)
+    if not resolved:
+        msg = f"Could not find folder to close: {path}"
+        log.warning(msg)
+        return msg
+        
+    system = platform.system()
+    try:
+        if system == "Windows":
+            # Safely close only the specific Explorer window using a PowerShell COM Object
+            # We match the window's LocationName broadly against the resolved folder's name
+            folder_name = resolved.name.replace("'", "''")
+            ps_script = f"""
+            $Shell = New-Object -ComObject Shell.Application
+            foreach ($window in $Shell.Windows()) {{
+                if ($window.LocationName -match '{folder_name}') {{
+                    $window.Quit()
+                }}
+            }}
+            """
+            subprocess.run(
+                ["powershell", "-Command", ps_script],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            # On Unix/Mac, closing specific Finder/Nautilus tabs automatically is complex,
+            # so we fall back to a generic warning or attempt a soft kill.
+            return f"Closed folder functionality is currently tailored for Windows. Please close '{resolved.name}' manually."
+            
+        return f"Closed folder: {resolved.name}"
+    except Exception as exc:  # noqa: BLE001
+        msg = f"Failed to close folder '{resolved.name}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def close_file(path: str) -> str:
+    """Attempt to close a file by terminating its host application.
+    
+    Because files do not run as independent processes, this uses a heuristic
+    to map the file extension to the likely host program (e.g., .txt -> notepad.exe),
+    and terminates that program.
+    
+    Args:
+        path: File path or friendly shorthand.
+        
+    Returns:
+        Human-readable status string.
+    """
+    resolved = _smart_find(path, find_dir=False)
+    if not resolved:
+        # If we can't find it, we might just have a random filename. We can still try to derive extension
+        resolved = Path(path)
+        
+    if resolved.is_dir():
+        return close_folder(str(resolved))
+
+    ext = resolved.suffix.lower()
+    
+    # Heuristic mapping for common file extensions to their typical host application executables
+    ext_to_app = {
+        ".txt": "notepad.exe",
+        ".md": "code.exe",
+        ".py": "code.exe",
+        ".js": "code.exe",
+        ".json": "code.exe",
+        ".ppt": "powerpnt.exe",
+        ".pptx": "powerpnt.exe",
+        ".doc": "winword.exe",
+        ".docx": "winword.exe",
+        ".xls": "excel.exe",
+        ".xlsx": "excel.exe",
+        ".pdf": "msedge.exe", # Default for many Windows users
+        ".jpg": "PhotosApp.exe",
+        ".jpeg": "PhotosApp.exe",
+        ".png": "PhotosApp.exe",
+        ".gif": "PhotosApp.exe",
+        ".mp4": "vlc.exe",
+        ".mp3": "vlc.exe",
+    }
+    
+    host_app = ext_to_app.get(ext)
+    
+    if not host_app:
+        return (
+            f"I cannot safely determine which application is hosting '{resolved.name}'. "
+            f"Please use the 'close_app' command with the application's name instead (e.g. 'close powerpoint')."
+        )
+        
+    system = platform.system()
+    try:
+        if system == "Windows":
+            subprocess.run(
+                ["taskkill", "/IM", host_app, "/F"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            clean_app = host_app.replace(".exe", "")
+            subprocess.run(
+                ["pkill", "-f", clean_app],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return f"Closed file host ({host_app}) for: {resolved.name}"
+    except subprocess.CalledProcessError:
+        return f"Could not find a running '{host_app}' to close."
+    except Exception as exc:  # noqa: BLE001
+        return f"Failed to close file '{resolved.name}': {exc}"
+
+
 def organize_downloads() -> str:
     """Sort the Downloads folder into sub-folders by file type.
 

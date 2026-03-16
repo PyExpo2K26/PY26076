@@ -98,7 +98,9 @@ class Executor:
             create_folder,
             search_files,
             open_folder,
+            close_folder,
             open_file,
+            close_file,
         )
         from infini_think.tools.system_tools import (
             run_terminal_command,
@@ -113,7 +115,9 @@ class Executor:
         self.register("create_folder", create_folder)
         self.register("search_files", search_files)
         self.register("open_folder", open_folder)
+        self.register("close_folder", close_folder)
         self.register("open_file", open_file)
+        self.register("close_file", close_file)
         self.register("run_terminal_command", run_terminal_command)
         self.register("shutdown_pc", shutdown_pc)
         self.register("get_system_info", get_system_info)

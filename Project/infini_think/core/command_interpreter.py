@@ -35,7 +35,9 @@ Available tools:
 - open_app(app_name: str)           — Launch an application by name
 - close_app(app_name: str)          — Close a running application by name
 - open_folder(path: str)            — Open a folder in the file explorer
+- close_folder(path: str)           — Close a folder in the file explorer
 - open_file(path: str)              — Open a file with the default system application
+- close_file(path: str)             — Close a file or its host application
 - open_vscode(path: str = "")       — Open VS Code (optionally at a path)
 - search_files(query: str)          — Search the filesystem for files matching the query
 - create_folder(name: str)          — Create a new folder
@@ -57,7 +59,9 @@ Examples:
   User: open chrome             → {"tool": "open_app", "args": ["chrome"]}
   User: close notepad           → {"tool": "close_app", "args": ["notepad"]}
   User: open my downloads folder→ {"tool": "open_folder", "args": ["downloads"]}
+  User: close the downloads folder→ {"tool": "close_folder", "args": ["downloads"]}
   User: open desktop/report.pdf → {"tool": "open_file", "args": ["desktop/report.pdf"]}
+  User: close report.pdf        → {"tool": "close_file", "args": ["report.pdf"]}
   User: create a folder named Work → {"tool": "create_folder", "args": ["Work"]}
   User: what is my CPU model    → {"tool": "get_system_info", "args": []}
   User: how are you doing today → {"tool": "talk", "args": ["I am functioning normally. How can I assist you?"]}
