@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# pytest / test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.coveragerc
+.tox/
+
+# mypy
+.mypy_cache/
+*.pyi
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# User data
+.infini_think/
+
+# Secrets / keys
+.env.local
+secrets.json
+config.local.py
+
+# Ollama model cache (large)
+*.gguf
+*.bin
+models/
