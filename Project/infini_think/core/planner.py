@@ -57,13 +57,13 @@ Rules:
 
 Examples:
   "prepare my research workspace"
-  → [{"tool":"open_app","args":["chrome"]},{"tool":"open_app","args":["notion"]},{"tool":"open_folder","args":["research"]}]
+  → [{{ "tool":"open_app","args":["chrome"] }},{{ "tool":"open_app","args":["notion"] }},{{ "tool":"open_folder","args":["research"] }}]
 
   "open notepad"
-  → [{"tool":"open_app","args":["notepad"]}]
+  → [{{ "tool":"open_app","args":["notepad"] }}]
 
   "organize downloads and open explorer"
-  → [{"tool":"organize_downloads","args":[]},{"tool":"open_folder","args":["downloads"]}]
+  → [{{ "tool":"organize_downloads","args":[] }},{{ "tool":"open_folder","args":["downloads"] }}]
 """.format(max_steps=settings.max_plan_steps)
 
 
