@@ -127,6 +127,9 @@ class MainWindow(QMainWindow):
     Wires together the chat UI, AI backend, voice assistant, and menu bar.
     """
 
+    stt_result_ready = Signal(str)
+    stt_error_occurred = Signal(str)
+
     def __init__(self) -> None:
         super().__init__()
         self._threads: list[QThread] = []
@@ -163,6 +166,8 @@ class MainWindow(QMainWindow):
             on_result=self._on_stt_result,
             on_error=self._on_stt_error,
         )
+        self.stt_result_ready.connect(self._handle_stt_result)
+        self.stt_error_occurred.connect(self._handle_stt_error)
 
     def _build_ui(self) -> None:
         """Construct the main window layout."""
@@ -295,6 +300,9 @@ class MainWindow(QMainWindow):
         thread = QThread()
         worker = _AIWorker(text, self._planner, self._executor)
         worker.moveToThread(thread)
+        
+        # Keep a reference to prevent garbage collection
+        thread.worker = worker 
 
         thread.started.connect(worker.run)
         worker.result_ready.connect(self._on_results_ready)
@@ -360,14 +368,7 @@ class MainWindow(QMainWindow):
 
     def _on_stt_result(self, text: str) -> None:
         """Called from the STT background thread — schedule GUI update safely."""
-        from PySide6.QtCore import QMetaObject, Qt
-        # Use invokeMethod to safely update GUI from the worker thread
-        QMetaObject.invokeMethod(
-            self,
-            "_handle_stt_result",
-            Qt.ConnectionType.QueuedConnection,
-            text,
-        )
+        self.stt_result_ready.emit(text)
 
     @Slot(str)
     def _handle_stt_result(self, text: str) -> None:
@@ -377,13 +378,7 @@ class MainWindow(QMainWindow):
         self._on_message_submitted(text)
 
     def _on_stt_error(self, msg: str) -> None:
-        from PySide6.QtCore import QMetaObject, Qt
-        QMetaObject.invokeMethod(
-            self,
-            "_handle_stt_error",
-            Qt.ConnectionType.QueuedConnection,
-            msg,
-        )
+        self.stt_error_occurred.emit(msg)
 
     @Slot(str)
     def _handle_stt_error(self, msg: str) -> None:

@@ -30,6 +30,7 @@ log = get_logger(__name__)
 _WIN_APP_MAP: dict[str, str] = {
     # Browsers
     "chrome":           "chrome",
+    "google":           "chrome",
     "google chrome":    "chrome",
     "firefox":          "firefox",
     "mozilla firefox":  "firefox",
@@ -79,6 +80,7 @@ _WIN_APP_MAP: dict[str, str] = {
 # Linux/macOS alias map
 _UNIX_APP_MAP: dict[str, str] = {
     "chrome":           "google-chrome",
+    "google":           "google-chrome",
     "google chrome":    "google-chrome",
     "firefox":          "firefox",
     "vscode":           "code",
@@ -117,6 +119,8 @@ def open_app(app_name: str) -> str:
     Returns:
         Human-readable status string.
     """
+    import webbrowser
+
     executable = _resolve_app_name(app_name)
     system = platform.system()
     log.info("Launching app: %r → executable=%r (platform=%s)", app_name, executable, system)
@@ -124,32 +128,56 @@ def open_app(app_name: str) -> str:
     try:
         if system == "Windows":
             # ``start`` handles both .exe names and ms- URI schemes
-            subprocess.Popen(
+            # Note: We use check=True so that if 'start' fails to find the app, it raises an exception
+            subprocess.run(
                 f'start "" "{executable}"',
                 shell=True,
+                check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
         elif system == "Darwin":
-            subprocess.Popen(
+            subprocess.run(
                 ["open", "-a", executable],
+                check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
         else:
-            subprocess.Popen(
+            subprocess.run(
                 [executable],
+                check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
         return f"Launched: {app_name}"
-    except FileNotFoundError:
-        msg = (
-            f"Could not find '{app_name}'. "
-            "Make sure it is installed and on your PATH."
-        )
-        log.warning(msg)
-        return msg
+    
+    except subprocess.CalledProcessError:
+        # If launching failed, try opening as a website
+        # Force Google Chrome for the fallback as requested
+        clean_name = app_name.lower().replace(" ", "")
+        
+        # If they literally meant searching google, or fallback to domain
+        if clean_name == "google":
+            url = "https://www.google.com"
+        else:
+            url = f"https://www.{clean_name}.com"
+            
+        log.info("App launch failed, falling back to web in Chrome: %s", url)
+        
+        try:
+            if system == "Windows":
+                subprocess.run(f'start chrome "{url}"', shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif system == "Darwin":
+                subprocess.run(["open", "-a", "Google Chrome", url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                subprocess.run(["google-chrome", url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            # Fall back to default if Chrome is completely missing
+            webbrowser.open(url)
+            
+        return f"Opened in Chrome: {app_name}"
+
     except Exception as exc:  # noqa: BLE001
         msg = f"Failed to launch '{app_name}': {exc}"
         log.error(msg)

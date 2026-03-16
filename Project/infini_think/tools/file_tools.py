@@ -9,6 +9,7 @@ chat window and optionally spoken by the TTS engine.
 Available tools
 ---------------
 - ``open_folder(path)`` — open a folder in the native file explorer
+- ``open_file(path)`` — open a file using the system default application
 - ``organize_downloads()`` — sort Downloads into sub-folders by type
 - ``create_folder(name)`` — create a new folder in the current user home
 - ``search_files(query)`` — find files matching a name pattern
@@ -69,6 +70,63 @@ def _open_path_in_explorer(path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
+    """Attempt to resolve a path, falling back to a recursive search in common folders."""
+    shortcuts: dict[str, Path] = {
+        "downloads": Path.home() / "Downloads",
+        "desktop":   Path.home() / "Desktop",
+        "documents": Path.home() / "Documents",
+        "pictures":  Path.home() / "Pictures",
+        "music":     Path.home() / "Music",
+        "videos":    Path.home() / "Videos",
+    }
+
+    # 1. Exact resolution attempt
+    parts = path_str.replace("\\", "/").split("/")
+    base_shortcut = parts[0].lower()
+    
+    if base_shortcut in shortcuts:
+        resolved = shortcuts[base_shortcut].joinpath(*parts[1:])
+    elif base_shortcut == "home":
+        resolved = Path.home().joinpath(*parts[1:])
+    else:
+        resolved = Path(path_str)
+
+    if resolved.exists():
+        return resolved
+
+    # 2. Deep search fallback
+    query = Path(path_str).name.lower()
+    log.info("Path %r not found. Deep searching for: %r", path_str, query)
+    
+    search_dirs = []
+    if base_shortcut in shortcuts:
+        search_dirs.append(shortcuts[base_shortcut])
+    for k, v in shortcuts.items():
+        if v not in search_dirs:
+            search_dirs.append(v)
+            
+    for search_dir in search_dirs:
+        if not search_dir.exists():
+            continue
+        try:
+            for p in search_dir.rglob("*"):
+                # Fast exclusion of hidden/system directories
+                if "/." in p.as_posix() or "\\." in str(p):
+                    continue
+                if find_dir and not p.is_dir():
+                    continue
+                if not find_dir and not p.is_file():
+                    continue
+                
+                if query in p.name.lower():
+                    log.info("Deep search matched: %s", p)
+                    return p
+        except PermissionError:
+            pass
+
+    return None
+
 def open_folder(path: str) -> str:
     """Open a folder in the native file explorer.
 
@@ -81,26 +139,43 @@ def open_folder(path: str) -> str:
     Returns:
         Human-readable status string.
     """
-    shortcuts: dict[str, Path] = {
-        "downloads": Path.home() / "Downloads",
-        "desktop":   Path.home() / "Desktop",
-        "documents": Path.home() / "Documents",
-        "pictures":  Path.home() / "Pictures",
-        "music":     Path.home() / "Music",
-        "videos":    Path.home() / "Videos",
-        "home":      Path.home(),
-    }
+    resolved = _smart_find(path, find_dir=True)
 
-    resolved: Path = shortcuts.get(path.lower().strip(), Path(path))
-
-    if not resolved.exists():
-        msg = f"Folder not found: {resolved}"
+    if not resolved:
+        msg = f"Folder not found during search: {path}"
         log.warning(msg)
         return msg
 
     log.info("Opening folder: %s", resolved)
     _open_path_in_explorer(resolved)
     return f"Opened folder: {resolved}"
+
+
+def open_file(path: str) -> str:
+    """Open a file using the system's default application.
+
+    Accepts absolute paths or paths relative to the home directory.
+    Uses the same shortcut resolution as `open_folder` (e.g. "downloads/image.png").
+
+    Args:
+        path: File path or friendly shorthand.
+
+    Returns:
+        Human-readable status string.
+    """
+    resolved = _smart_find(path, find_dir=False)
+
+    if not resolved:
+        msg = f"File not found during search: {path}"
+        log.warning(msg)
+        return msg
+
+    if resolved.is_dir():
+        return open_folder(str(resolved))
+
+    log.info("Opening file: %s", resolved)
+    _open_path_in_explorer(resolved)
+    return f"Opened file: {resolved.name}"
 
 
 def organize_downloads() -> str:

@@ -42,12 +42,14 @@ Each element must have "tool" and "args" keys.
 Available tools:
 - open_app(app_name: str)
 - open_folder(path: str)
+- open_file(path: str)
 - open_vscode(path: str = "")
 - search_files(query: str)
 - create_folder(name: str)
 - organize_downloads()
 - run_terminal_command(command: str)
 - get_system_info()
+- talk(message: str)
 
 Rules:
 1. Reply ONLY with a JSON array. No explanation. No markdown. No code fence.
