@@ -1,0 +1,2 @@
+[console_scripts]
+infini-think = infini_think.app.launcher:main

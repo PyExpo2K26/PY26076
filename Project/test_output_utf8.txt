@@ -1,0 +1,16 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+PySide6 6.10.2 -- Qt runtime 6.10.2 -- Qt compiled 6.10.2
+rootdir: C:\Users\KiTE\OneDrive\Desktop\PY26076\Project
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, qt-4.5.0
+collecting ... collected 28 items
+
+tests/test_basic.py::TestSettings::test_settings_imports PASSED          [  3%]
+tests/test_basic.py::TestSettings::test_ollama_generate_url PASSED       [  7%]
+tests/test_basic.py::TestSettings::test_log_dir_exists_after_import PASSED [ 10%]
+tests/test_basic.py::TestSettings::test_downloads_dir_is_path PASSED     [ 14%]
+tests/test_basic.py::TestLogger::test_get_logger_returns_logger PASSED   [ 17%]
+tests/test_basic.py::TestLogger::test_get_logger_idempotent PASSED       [ 21%]

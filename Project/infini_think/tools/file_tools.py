@@ -95,7 +95,7 @@ def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
     if resolved.exists():
         return resolved
 
-    # 2. Deep search fallback
+    # 2. Deep search fallback (limit depth to prevent hangs)
     query = Path(path_str).name.lower()
     log.info("Path %r not found. Deep searching for: %r", path_str, query)
     
@@ -106,24 +106,45 @@ def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
         if v not in search_dirs:
             search_dirs.append(v)
             
+    max_depth = 2
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
         try:
-            for p in search_dir.rglob("*"):
-                # Fast exclusion of hidden/system directories
-                if "/." in p.as_posix() or "\\." in str(p):
-                    continue
-                if find_dir and not p.is_dir():
-                    continue
-                if not find_dir and not p.is_file():
+            # Use os.walk for controlled depth traversal
+            search_dir_str = str(search_dir)
+            base_count = search_dir_str.count(os.sep)
+            
+            for root, dirs, files in os.walk(search_dir_str):
+                # Calculate current depth relative to search_dir
+                current_depth = root.count(os.sep) - base_count
+                if current_depth > max_depth:
+                    dirs[:] = [] # Don't go deeper
                     continue
                 
-                if query in p.name.lower():
-                    log.info("Deep search matched: %s", p)
-                    return p
-        except PermissionError:
-            pass
+                # Check directories if looking for dir
+                if find_dir:
+                    for d in dirs:
+                        if d.startswith("."): # Skip hidden
+                            continue
+                        if query in d.lower():
+                            res = Path(root) / d
+                            log.info("Deep search matched folder: %s", res)
+                            return res
+                else:
+                    # Check files
+                    for f in files:
+                        if f.startswith("."):
+                            continue
+                        if query in f.lower():
+                            res = Path(root) / f
+                            log.info("Deep search matched file: %s", res)
+                            return res
+                            
+        except (PermissionError, OSError):
+            continue
+
+    return None
 
     return None
 
