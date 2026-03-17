@@ -390,6 +390,38 @@ def create_folder(name: str, parent: str | None = None) -> str:
     return f"Created folder: {target}"
 
 
+def read_file(path: str) -> str:
+    """Read the text content of a file.
+
+    Accepts absolute paths or paths relative to the home directory.
+    Uses shortcut resolution (e.g. "downloads/notes.txt").
+
+    Args:
+        path: File path or friendly shorthand.
+
+    Returns:
+        The content of the file (truncated if too long), or an error message.
+    """
+    resolved = _smart_find(path, find_dir=False)
+
+    if not resolved:
+        return f"File not found: {path}"
+
+    if not resolved.is_file():
+        return f"Path is not a file: {resolved}"
+
+    try:
+        # Read up to 5000 chars to avoid overwhelming the model/UI
+        content = resolved.read_text(encoding="utf-8", errors="replace")
+        if len(content) > 5000:
+            content = content[:5000] + "\n... (content truncated)"
+        
+        log.info("Read file contents: %s", resolved)
+        return f"Contents of {resolved.name}:\n\n{content}"
+    except Exception as exc:
+        return f"Failed to read file: {exc}"
+
+
 def search_files(query: str, root: str | None = None) -> str:
     """Recursively search for files whose names contain *query*.
 

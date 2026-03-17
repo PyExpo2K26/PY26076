@@ -42,16 +42,19 @@ Each element must have "tool" and "args" keys.
 Available tools:
 - open_app(app_name: str)
 - close_app(app_name: str)
+- open_url(url: str, browser: str = "chrome")
 - open_folder(path: str)
 - close_folder(path: str)
 - open_file(path: str)
 - close_file(path: str)
+- read_file(path: str)
 - open_vscode(path: str = "")
 - search_files(query: str)
 - create_folder(name: str)
 - organize_downloads()
 - run_terminal_command(command: str)
 - get_system_info()
+- get_active_window_info()
 - talk(message: str)
 
 Rules:
@@ -75,6 +78,18 @@ Examples:
 
   "close my project document"
   → [{{ "tool":"close_file","args":["project"] }}]
+
+  "open gemini in chrome"
+  → [{{ "tool":"open_url","args":["gemini.google.com", "chrome"] }}]
+
+  "what's in my current window?"
+  → [{{ "tool":"get_active_window_info","args":[] }}]
+
+  "read the readme file"
+  → [{{ "tool":"read_file","args":["README.md"] }}]
+
+  "close chatgpt in chrome"
+  → [{{ "tool":"close_app","args":["chrome"] }}]
 """.format(max_steps=settings.max_plan_steps)
 
 

@@ -1,0 +1,65 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+PySide6 6.10.2 -- Qt runtime 6.10.2 -- Qt compiled 6.10.2
+rootdir: C:\Users\KiTE\OneDrive\Desktop\PY26076\Project
+configfile: pyproject.toml
+plugins: anyio-4.12.1, qt-4.5.0
+collecting ... collected 1 item
+
+tests/test_basic.py::TestExecutor::test_unknown_tool_returns_failure FAILED [100%]
+
+================================== FAILURES ===================================
+_______________ TestExecutor.test_unknown_tool_returns_failure ________________
+
+self = <tests.test_basic.TestExecutor object at 0x000001406508E5D0>
+
+    def test_unknown_tool_returns_failure(self):
+        from infini_think.core.executor import Executor
+>       executor = Executor()
+                   ^^^^^^^^^^
+
+tests\test_basic.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <infini_think.core.executor.Executor object at 0x0000014065652120>
+
+    def __init__(self) -> None:
+        self._registry: dict[str, Callable[..., str]] = {}
+>       self._register_default_tools()
+
+infini_think\core\executor.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <infini_think.core.executor.Executor object at 0x0000014065652120>
+
+    def _register_default_tools(self) -> None:
+        """Import and register all built-in tools."""
+        # Import here to avoid circular imports at module load time
+        from infini_think.tools.app_tools import open_app, open_vscode, close_app
+        from infini_think.tools.file_tools import (
+            organize_downloads,
+            create_folder,
+            search_files,
+            open_folder,
+            close_folder,
+            open_file,
+            close_file,
+        )
+        from infini_think.tools.system_tools import (
+            run_terminal_command,
+            shutdown_pc,
+            get_system_info,
+        )
+        from infini_think.tools.window_tools import get_active_window_info
+    
+        self.register("open_app", open_app)
+        self.register("close_app", close_app)
+>       self.register("open_url", open_url)
+                                  ^^^^^^^^
+E       NameError: name 'open_url' is not defined
+
+infini_think\core\executor.py:114: NameError
+=========================== short test summary info ===========================
+FAILED tests/test_basic.py::TestExecutor::test_unknown_tool_returns_failure
+============================== 1 failed in 0.81s ==============================

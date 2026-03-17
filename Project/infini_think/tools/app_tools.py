@@ -133,8 +133,6 @@ def open_app(app_name: str) -> str:
 
     try:
         if system == "Windows":
-            # ``start`` handles both .exe names and ms- URI schemes
-            # Note: We use check=True so that if 'start' fails to find the app, it raises an exception
             subprocess.run(
                 f'start "" "{executable}"',
                 shell=True,
@@ -159,11 +157,7 @@ def open_app(app_name: str) -> str:
         return f"Launched: {app_name}"
     
     except subprocess.CalledProcessError:
-        # If launching failed, try opening as a website
-        # Force Google Chrome for the fallback as requested
         clean_name = app_name.lower().replace(" ", "")
-        
-        # If they literally meant searching google, or fallback to domain
         if clean_name == "google":
             url = "https://www.google.com"
         else:
@@ -179,10 +173,47 @@ def open_app(app_name: str) -> str:
             else:
                 subprocess.run(["google-chrome", url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
-            # Fall back to default if Chrome is completely missing
             webbrowser.open(url)
             
         return f"Opened in Chrome: {app_name}"
+
+    except Exception as exc:  # noqa: BLE001
+        msg = f"Failed to launch '{app_name}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def open_url(url: str, browser: str = "chrome") -> str:
+    """Open a specific URL in a browser.
+
+    Args:
+        url: The website URL to open.
+        browser: The browser to use (default "chrome").
+
+    Returns:
+        Human-readable status string.
+    """
+    system = platform.system()
+    executable = _resolve_app_name(browser)
+    log.info("Opening URL: %r in browser: %r", url, browser)
+
+    if not url.startswith("http"):
+        url = "https://" + url
+
+    try:
+        if system == "Windows":
+            # If executable is just 'chrome', start command works.
+            # If it's a full path, it also works.
+            subprocess.run(f'start {executable} "{url}"', shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif system == "Darwin":
+            subprocess.run(["open", "-a", executable, url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            subprocess.run([executable, url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return f"Opened {url} in {browser}"
+    except Exception as exc:
+        import webbrowser
+        webbrowser.open(url)
+        return f"Opened {url} (fallback to default browser due to: {exc})"
 
     except Exception as exc:  # noqa: BLE001
         msg = f"Failed to launch '{app_name}': {exc}"
@@ -224,11 +255,12 @@ def open_vscode(path: str = "") -> str:
         return f"Failed to open VS Code: {exc}"
 
 
-def close_app(app_name: str) -> str:
+def close_app(app_name: str, *args: str) -> str:
     """Close a running application by its friendly name.
     
     Args:
         app_name: The application name, e.g. ``"chrome"``, ``"notepad"``.
+        *args: Extra arguments (ignored, but prevents errors if LLM provides context).
 
     Returns:
         Human-readable status string.

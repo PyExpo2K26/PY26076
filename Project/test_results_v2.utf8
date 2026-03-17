@@ -1,0 +1,38 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+PySide6 6.10.2 -- Qt runtime 6.10.2 -- Qt compiled 6.10.2
+rootdir: C:\Users\KiTE\OneDrive\Desktop\PY26076\Project
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, qt-4.5.0
+collecting ... collected 28 items
+
+tests/test_basic.py::TestSettings::test_settings_imports PASSED          [  3%]
+tests/test_basic.py::TestSettings::test_ollama_generate_url PASSED       [  7%]
+tests/test_basic.py::TestSettings::test_log_dir_exists_after_import PASSED [ 10%]
+tests/test_basic.py::TestSettings::test_downloads_dir_is_path PASSED     [ 14%]
+tests/test_basic.py::TestLogger::test_get_logger_returns_logger PASSED   [ 17%]
+tests/test_basic.py::TestLogger::test_get_logger_idempotent PASSED       [ 21%]
+tests/test_basic.py::TestAIEngine::test_init PASSED                      [ 25%]
+tests/test_basic.py::TestAIEngine::test_generate_url_property PASSED     [ 28%]
+tests/test_basic.py::TestAIEngine::test_is_available_returns_false_when_offline PASSED [ 32%]
+tests/test_basic.py::TestAIEngine::test_generate_returns_text PASSED     [ 35%]
+tests/test_basic.py::TestCommandInterpreter::test_interpret_open_chrome PASSED [ 39%]
+tests/test_basic.py::TestCommandInterpreter::test_interpret_empty_input_returns_fallback PASSED [ 42%]
+tests/test_basic.py::TestCommandInterpreter::test_interpret_invalid_json_falls_back PASSED [ 46%]
+tests/test_basic.py::TestCommandInterpreter::test_interpret_strips_markdown_fences PASSED [ 50%]
+tests/test_basic.py::TestTaskPlanner::test_simple_request_uses_interpreter PASSED [ 53%]
+tests/test_basic.py::TestTaskPlanner::test_plan_returns_list_of_dicts PASSED [ 57%]
+tests/test_basic.py::TestExecutor::test_unknown_tool_returns_failure PASSED [ 60%]
+tests/test_basic.py::TestExecutor::test_unknown_command_returns_failure PASSED [ 64%]
+tests/test_basic.py::TestExecutor::test_execute_plan_empty PASSED        [ 67%]
+tests/test_basic.py::TestExecutor::test_register_custom_tool PASSED      [ 71%]
+tests/test_basic.py::TestFileTools::test_open_folder_nonexistent PASSED  [ 75%]
+tests/test_basic.py::TestFileTools::test_create_folder PASSED            [ 78%]
+tests/test_basic.py::TestFileTools::test_create_folder_already_exists PASSED [ 82%]
+tests/test_basic.py::TestFileTools::test_search_files_no_results PASSED  [ 85%]
+tests/test_basic.py::TestFileTools::test_search_files_finds_file PASSED  [ 89%]
+tests/test_basic.py::TestSystemTools::test_get_system_info PASSED        [ 92%]
+tests/test_basic.py::TestSystemTools::test_run_terminal_command_echo PASSED [ 96%]
+tests/test_basic.py::TestSystemTools::test_run_terminal_command_bad_command PASSED [100%]

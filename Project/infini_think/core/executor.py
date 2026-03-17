@@ -92,7 +92,7 @@ class Executor:
     def _register_default_tools(self) -> None:
         """Import and register all built-in tools."""
         # Import here to avoid circular imports at module load time
-        from infini_think.tools.app_tools import open_app, open_vscode, close_app
+        from infini_think.tools.app_tools import open_app, open_vscode, close_app, open_url
         from infini_think.tools.file_tools import (
             organize_downloads,
             create_folder,
@@ -101,15 +101,18 @@ class Executor:
             close_folder,
             open_file,
             close_file,
+            read_file,
         )
         from infini_think.tools.system_tools import (
             run_terminal_command,
             shutdown_pc,
             get_system_info,
         )
+        from infini_think.tools.window_tools import get_active_window_info
 
         self.register("open_app", open_app)
         self.register("close_app", close_app)
+        self.register("open_url", open_url)
         self.register("open_vscode", open_vscode)
         self.register("organize_downloads", organize_downloads)
         self.register("create_folder", create_folder)
@@ -118,9 +121,11 @@ class Executor:
         self.register("close_folder", close_folder)
         self.register("open_file", open_file)
         self.register("close_file", close_file)
+        self.register("read_file", read_file)
         self.register("run_terminal_command", run_terminal_command)
         self.register("shutdown_pc", shutdown_pc)
         self.register("get_system_info", get_system_info)
+        self.register("get_active_window_info", get_active_window_info)
         
         # Built-in lightweight conversational handler
         self.register("talk", lambda msg: msg)
