@@ -12,42 +12,42 @@ from infini_think.utils.logger import get_logger
 
 log = get_logger(__name__)
 
-# Global state to keep the browser running
-_playwright = None
-_browser = None
-_context: BrowserContext | None = None
-_page: Page | None = None
+# We must not share the sync_playwright instance across QThreads!
+# Each tool call by the AI engine happens in a new or different thread.
+# Therefore, we open and close a fresh playwright instance or maintain a thread-local one.
+import threading
+
+_thread_local = threading.local()
 
 def _get_page() -> Page:
-    """Ensure a persistent browser session is running and return the active page."""
-    global _playwright, _browser, _context, _page
-    if _page is None or _page.is_closed():
-        # Start playwright
-        if _playwright is None:
-            _playwright = sync_playwright().start()
-            
-        # Launch persistent context to keep login states
+    """Ensure a browser session is running for the current thread and return the active page."""
+    
+    # Check if this thread already has a running playwright/page
+    if not hasattr(_thread_local, "playwright"):
+        _thread_local.playwright = sync_playwright().start()
+        
+    if not hasattr(_thread_local, "page") or _thread_local.page.is_closed():
         import os
         user_data_dir = os.path.join(os.path.expanduser("~"), ".infini_think", "chrome_data")
         os.makedirs(user_data_dir, exist_ok=True)
         
         try:
-            _context = _playwright.chromium.launch_persistent_context(
+            context = _thread_local.playwright.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 headless=False,
-                channel="chrome", # try to use normal chrome if installed
+                channel="chrome",
                 args=["--disable-blink-features=AutomationControlled"]
             )
         except Exception:
-            # Fallback to default bundled chromium
-            _context = _playwright.chromium.launch_persistent_context(
+            context = _thread_local.playwright.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 headless=False,
                 args=["--disable-blink-features=AutomationControlled"]
             )
             
-        _page = _context.pages[0] if _context.pages else _context.new_page()
-    return _page
+        _thread_local.page = context.pages[0] if context.pages else context.new_page()
+        
+    return _thread_local.page
 
 
 def web_navigate(url: str) -> str:
@@ -127,16 +127,27 @@ def web_fill_and_submit(url: str, element_description: str, text: str) -> str:
             
         page.bring_to_front()
         
-        # We try to use Playwright's get_by_role and get_by_placeholder heuristics
-        locators_to_try = [
+        # Specific robust selectors for notoriously difficult LLM/SPA sites
+        site_specific_selectors = []
+        if "gemini.google.com" in current_domain:
+            site_specific_selectors = [page.locator("rich-textarea"), page.locator(".ql-editor"), page.get_by_role("textbox", name="Enter a prompt here")]
+        elif "chatgpt.com" in current_domain or "chat.openai.com" in current_domain:
+            site_specific_selectors = [page.locator("#prompt-textarea")]
+        elif "youtube.com" in current_domain:
+            site_specific_selectors = [page.locator("input#search"), page.get_by_role("combobox", name="Search")]
+            
+        # We try to use Playwright's get_by_role, get_by_placeholder, and specific CSS heuristics
+        locators_to_try = site_specific_selectors + [
             # High precision if they passed a real selector
             page.locator(element_description),
             # General text box fallbacks
+            page.get_by_placeholder(element_description, exact=False),
             page.get_by_role("textbox", name=element_description),
-            page.get_by_placeholder(element_description),
             page.get_by_role("searchbox"),
-            page.locator("textarea"),  # For many chat apps like ChatGPT/Gemini
-            page.locator("input[type='text']")
+            # Broad fallbacks for SPAs
+            page.locator("textarea").last,  # Often the main chat input is the last textarea on the page
+            page.locator("input[type='text'], input[type='search']").first,
+            page.locator("[contenteditable='true']").last, # Rich text editors (like old Gemini UI)
         ]
         
         found_locator = None

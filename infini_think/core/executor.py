@@ -186,6 +186,19 @@ class Executor:
             msg = f"Tool '{tool_name}' raised an error: {exc}"
             log.error("%s\n%s", msg, traceback.format_exc())
             return _make_result(tool_name, args, False, msg, elapsed, str(exc))
+        finally:
+            # If this thread used web_tools, close the playwright instance so the thread can exit cleanly
+            if tool_name.startswith("web_"):
+                try:
+                    from infini_think.tools.web_tools import _thread_local
+                    if hasattr(_thread_local, "playwright"):
+                        if hasattr(_thread_local, "page") and _thread_local.page and not _thread_local.page.is_closed():
+                            _thread_local.page.context.close()
+                        _thread_local.playwright.stop()
+                        delattr(_thread_local, "playwright")
+                        delattr(_thread_local, "page")
+                except Exception as e:
+                    log.warning("Failed to clean up thread-local playwright: %s", e)
 
     def execute_plan(self, plan: list[dict[str, Any]]) -> list[ExecutionResult]:
         """Execute an ordered list of commands, stopping on critical failure.
