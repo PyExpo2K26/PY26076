@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QMenuBar,
     QMenu,
     QMessageBox,
+    QPushButton,
     QApplication,
     QSizePolicy,
 )
@@ -100,25 +101,12 @@ _STATUS_STYLE = "QStatusBar { background: #0d1117; color: #8b949e; font-size: 9p
 
 _WINDOW_STYLE = """
 QMainWindow, QWidget#central {
-    background: #0d1117;
-}
-QMenuBar {
-    background: #161b22;
-    color: #e6edf3;
-    border-bottom: 1px solid #30363d;
-}
-QMenuBar::item:selected {
-    background: #21262d;
-}
-QMenu {
-    background: #161b22;
-    color: #e6edf3;
-    border: 1px solid #30363d;
-}
-QMenu::item:selected {
-    background: #1f6feb;
+    background: rgba(13, 17, 23, 180);
+    border-left: 1px solid #30363d;
 }
 """
+
+_SIDEBAR_WIDTH = 350
 
 
 class MainWindow(QMainWindow):
@@ -145,7 +133,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._check_ollama_status()
 
-        log.info("MainWindow initialised")
+        log.info("MainWindow initialised as Sidebar")
 
     # ------------------------------------------------------------------
     # Initialisation helpers
@@ -170,11 +158,17 @@ class MainWindow(QMainWindow):
         self.stt_error_occurred.connect(self._handle_stt_error)
 
     def _build_ui(self) -> None:
-        """Construct the main window layout."""
+        """Construct the main window layout as a sidebar."""
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
         self.setWindowTitle(settings.window_title)
-        self.resize(settings.window_width, settings.window_height)
+        self._reposition_sidebar()
         self.setStyleSheet(_WINDOW_STYLE)
-        self.setMinimumSize(600, 480)
 
         # --- Central widget ---
         central = QWidget()
@@ -195,14 +189,26 @@ class MainWindow(QMainWindow):
         self._chat.mic_toggled.connect(self._on_mic_toggled)
         root.addWidget(self._chat, stretch=1)
 
-        # --- Status bar ---
-        self._status = QStatusBar()
-        self._status.setStyleSheet(_STATUS_STYLE)
-        self.setStatusBar(self._status)
-        self._status.showMessage("Ready  •  Model: " + settings.ollama_model)
+    def _reposition_sidebar(self) -> None:
+        """Position the window as a sidebar on the right."""
+        screen = self.screen().geometry()
+        self.setGeometry(
+            screen.width() - _SIDEBAR_WIDTH,
+            0,
+            _SIDEBAR_WIDTH,
+            screen.height()
+        )
 
-        # --- Menu bar ---
-        self._build_menu()
+    def toggle_visibility(self) -> None:
+        """Toggle the sidebar visibility with a simple show/hide."""
+        if self.isVisible():
+            self.hide()
+            log.info("Sidebar hidden")
+        else:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+            log.info("Sidebar shown")
 
     def _build_header(self) -> QWidget:
         """Return the styled header bar widget."""
@@ -229,11 +235,21 @@ class MainWindow(QMainWindow):
         h_layout.addStretch()
 
         # Ollama status indicator
-        self._ollama_indicator = QLabel("● Connecting…")
+        self._ollama_indicator = QLabel("●")
         self._ollama_indicator.setStyleSheet(
             "color: #d29922; font-size: 10px; background: transparent;"
         )
         h_layout.addWidget(self._ollama_indicator)
+
+        # Close button for the sidebar
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(30, 30)
+        close_btn.clicked.connect(self.hide)
+        close_btn.setStyleSheet(
+            "QPushButton { background: transparent; color: #8b949e; font-size: 16px; border: none; }"
+            "QPushButton:hover { color: #da3633; }"
+        )
+        h_layout.addWidget(close_btn)
 
         return header
 
@@ -266,12 +282,8 @@ class MainWindow(QMainWindow):
     def _check_ollama_status(self) -> None:
         """Check Ollama availability and update the status indicator."""
         if self._engine and self._engine.is_available():
-            self._ollama_indicator.setText(f"● {settings.ollama_model}")
             self._ollama_indicator.setStyleSheet(
                 "color: #3fb950; font-size: 10px; background: transparent;"
-            )
-            self._status.showMessage(
-                f"Ready  •  Model: {settings.ollama_model}  •  Ollama: connected"
             )
         else:
             self._ollama_indicator.setText("● Ollama offline")
@@ -294,7 +306,6 @@ class MainWindow(QMainWindow):
         """Called when the user sends a message — dispatches AI work to a thread."""
         log.info("User submitted: %r", text)
         self._chat.set_thinking(True)
-        self._status.showMessage("Thinking…")
 
         # Create worker + thread
         thread = QThread()
@@ -319,9 +330,6 @@ class MainWindow(QMainWindow):
     def _on_results_ready(self, results: list[dict]) -> None:
         """Called on the GUI thread when AI execution results arrive."""
         self._chat.set_thinking(False)
-        self._status.showMessage(
-            f"Ready  •  Model: {settings.ollama_model}"
-        )
 
         for result in results:
             tool = result.get("tool", "?")
@@ -345,7 +353,6 @@ class MainWindow(QMainWindow):
         """Called when the background worker encounters a fatal error."""
         self._chat.set_thinking(False)
         self._chat.add_ai_message(f"❌  Error: {error_msg}")
-        self._status.showMessage("Error — check Ollama connection")
         if self._tts:
             self._tts.speak("I encountered an error. Please check if Ollama is running.")
 
@@ -360,11 +367,9 @@ class MainWindow(QMainWindow):
             return
         if active:
             self._stt.start_listening()
-            self._status.showMessage("Listening…  (speak now)")
             self._chat.add_system_message("🎤 Listening… speak your command.")
         else:
             self._stt.stop_listening()
-            self._status.showMessage(f"Ready  •  Model: {settings.ollama_model}")
 
     def _on_stt_result(self, text: str) -> None:
         """Called from the STT background thread — schedule GUI update safely."""

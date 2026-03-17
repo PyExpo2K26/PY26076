@@ -41,25 +41,25 @@ log = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 _DARK = {
-    "bg":           "#0d1117",
-    "surface":      "#161b22",
-    "surface2":     "#21262d",
+    "bg":           "transparent",
+    "surface":      "rgba(22, 27, 34, 200)",
+    "surface2":     "rgba(33, 38, 45, 200)",
     "border":       "#30363d",
     "accent":       "#58a6ff",
     "accent_dim":   "#1f6feb",
-    "user_bubble":  "#1f6feb",
-    "ai_bubble":    "#21262d",
+    "user_bubble":  "rgba(31, 111, 235, 180)",
+    "ai_bubble":    "rgba(33, 38, 45, 180)",
     "user_text":    "#ffffff",
     "ai_text":      "#e6edf3",
     "timestamp":    "#8b949e",
-    "input_bg":     "#0d1117",
+    "input_bg":     "rgba(13, 17, 23, 150)",
     "send_btn":     "#1f6feb",
     "send_hover":   "#388bfd",
-    "mic_inactive": "#21262d",
+    "mic_inactive": "rgba(33, 38, 45, 200)",
     "mic_active":   "#da3633",
     "mic_hover":    "#f85149",
     "placeholder":  "#484f58",
-    "welcome":      "#3d444d",
+    "welcome":      "rgba(61, 68, 77, 100)",
 }
 
 
@@ -175,14 +175,14 @@ class MessageArea(QScrollArea):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setStyleSheet(
-            f"QScrollArea {{ background: {_DARK['bg']}; border: none; }}"
-            f"QScrollBar:vertical {{ background: {_DARK['surface']}; width: 6px; }}"
+            f"QScrollArea {{ background: transparent; border: none; }}"
+            f"QScrollBar:vertical {{ background: rgba(22, 27, 34, 100); width: 6px; }}"
             f"QScrollBar::handle:vertical {{ background: {_DARK['border']}; border-radius: 3px; }}"
             f"QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}"
         )
 
         self._container = QWidget()
-        self._container.setStyleSheet(f"background: {_DARK['bg']};")
+        self._container.setStyleSheet(f"background: transparent;")
         self._layout = QVBoxLayout(self._container)
         self._layout.setContentsMargins(16, 16, 16, 16)
         self._layout.setSpacing(8)

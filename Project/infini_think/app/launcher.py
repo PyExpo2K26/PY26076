@@ -85,6 +85,8 @@ def _launch_gui() -> None:
         from PySide6.QtWidgets import QApplication
         from PySide6.QtGui import QFont
         from infini_think.gui.main_window import MainWindow
+        from infini_think.gui.agent_bubble import AgentBubble
+        from pathlib import Path
     except ImportError as exc:
         print(
             f"❌  PySide6 is not installed: {exc}\n"
@@ -104,9 +106,20 @@ def _launch_gui() -> None:
     # Apply dark palette for native widgets
     _apply_dark_palette(app)
 
-    window = MainWindow()
-    window.show()
-    log.info("GUI launched")
+    # Path to the agent icon
+    project_root = Path(__file__).parent.parent.parent
+    icon_path = str(project_root / "assets" / "infini_think_icon.png")
+
+    sidebar = MainWindow()
+    bubble = AgentBubble(icon_path)
+    
+    # Connect bubble click to toggle sidebar
+    bubble.clicked.connect(sidebar.toggle_visibility)
+    
+    bubble.show()
+    # sidebar is hidden by default
+    
+    log.info("Agent Bubble launched")
     sys.exit(app.exec())
 
 

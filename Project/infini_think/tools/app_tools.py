@@ -116,11 +116,12 @@ def _resolve_app_name(app_name: str) -> str:
     return _UNIX_APP_MAP.get(key, key)
 
 
-def open_app(app_name: str) -> str:
+def open_app(app_name: str, *args) -> str:
     """Launch an application by its friendly name.
 
     Args:
         app_name: The application name, e.g. ``"chrome"``, ``"notepad"``.
+        *args:    Extra arguments (ignored, but prevents errors from LLM context).
 
     Returns:
         Human-readable status string.
