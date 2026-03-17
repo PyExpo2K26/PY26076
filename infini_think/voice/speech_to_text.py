@@ -48,19 +48,19 @@ class SpeechToText:
     ) -> None:
         self._on_result = on_result
         self._on_error = on_error or (lambda msg: log.warning("STT error: %s", msg))
-        self._listening = False
+        self._is_listening = False
+        self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
-        # Lazy import — SpeechRecognition is optional at module-load time
+        # Check for dependencies
         try:
             import speech_recognition as sr  # noqa: F401
-            self._sr_available = True
-        except ImportError:
-            self._sr_available = False
-            log.warning(
-                "SpeechRecognition not installed. "
-                "Run: pip install SpeechRecognition pyaudio"
-            )
+            import pyaudio  # noqa: F401
+            self._available = True
+        except ImportError as exc:
+            self._available = False
+            missing = "pyaudio" if "pyaudio" in str(exc) else "SpeechRecognition"
+            log.warning(f"{missing} not installed. Speech recognition unavailable.")
 
     # ------------------------------------------------------------------
     # Public API
@@ -68,23 +68,25 @@ class SpeechToText:
 
     @property
     def is_available(self) -> bool:
-        """Return True if the SpeechRecognition library is importable."""
-        return self._sr_available
+        """Return True if SpeechRecognition and PyAudio are both present."""
+        return self._available
 
     def start_listening(self) -> None:
         """Begin microphone capture on a background thread (non-blocking)."""
-        if not self._sr_available:
+        if not self._available:
             self._on_error(
-                "SpeechRecognition is not installed. "
-                "Please run: pip install SpeechRecognition pyaudio"
+                "Speech recognition dependencies (SpeechRecognition, PyAudio) are missing.\n\n"
+                "On Python 3.14, you may need to install PyAudio from a wheel or use a stable Python version (3.11/3.12).\n"
+                "Try: pip install pipwin && pipwin install pyaudio"
             )
             return
 
-        if self._listening:
+        if self._is_listening:
             log.debug("Already listening — ignoring start request")
             return
 
-        self._listening = True
+        self._is_listening = True
+        self._stop_event.clear()
         self._thread = threading.Thread(
             target=self._recognition_loop,
             name="stt-worker",
@@ -95,8 +97,21 @@ class SpeechToText:
 
     def stop_listening(self) -> None:
         """Signal the background thread to stop after the current phrase."""
-        self._listening = False
-        log.info("STT stop requested")
+        if self._is_listening:
+            self._stop_event.set()
+            log.info("STT stop requested. Waiting for thread...")
+            
+            # Wait for the thread to finish if it's still running
+            thread = self._thread
+            if thread and thread.is_alive():
+                thread.join(timeout=5)  # Increased from 2 to avoid warnings on slow I/O
+                if thread.is_alive():
+                    log.warning("STT thread did not terminate gracefully within 5s.")
+            
+            self._is_listening = False
+            self._thread = None
+        else:
+            log.debug("Not listening — ignoring stop request")
 
     # ------------------------------------------------------------------
     # Background worker
@@ -108,26 +123,29 @@ class SpeechToText:
 
         recogniser = sr.Recognizer()
         recogniser.energy_threshold = settings.stt_energy_threshold
-        recogniser.pause_threshold = 0.8
+        recogniser.pause_threshold = 0.6  # Reduced from 1.2 for faster response
         recogniser.dynamic_energy_threshold = True
+        recogniser.dynamic_energy_adjustment_damping = 0.15
+        recogniser.dynamic_energy_ratio = 1.5
 
         try:
             with sr.Microphone() as source:
-                log.info("Adjusting for ambient noise …")
-                recogniser.adjust_for_ambient_noise(source, duration=1)
-                log.info("Listening for speech …")
+                log.info("Adjusting for ambient noise (0.5s) …")
+                recogniser.adjust_for_ambient_noise(source, duration=0.5)
+                log.info("Listening for speech (Energy Threshold: %d) …", recogniser.energy_threshold)
 
-                while self._listening:
+                while not self._stop_event.is_set():
                     try:
                         audio = recogniser.listen(
                             source,
-                            timeout=5,
-                            phrase_time_limit=settings.stt_phrase_timeout,
+                            timeout=2,
+                            phrase_time_limit=8, # Extended for complex commands
                         )
+                        log.debug("Audio captured, sending to recognizer …")
                     except sr.WaitTimeoutError:
-                        continue  # No speech detected; keep looping
+                        continue  # No speech; keep checking stop event
 
-                    if not self._listening:
+                    if self._stop_event.is_set():
                         break
 
                     try:
@@ -135,17 +153,19 @@ class SpeechToText:
                         log.info("Recognised: %r", text)
                         self._on_result(text)
                     except sr.UnknownValueError:
-                        self._on_error("Could not understand the audio. Please try again.")
+                        pass # Silently ignore unrecognised speech to keep loop alive
                     except sr.RequestError as exc:
-                        self._on_error(
-                            f"Google Speech Recognition unavailable: {exc}. "
-                            "Check your internet connection."
-                        )
+                        self._on_error(f"STT Service error: {exc}")
+                        break
 
-        except OSError as exc:
-            msg = f"Microphone not found or not accessible: {exc}"
+        except (OSError, AttributeError) as exc:
+            missing_pyaudio = isinstance(exc, AttributeError) and "PyAudio" in str(exc)
+            msg = (
+                "PyAudio not found. Please install it to use voice features."
+                if missing_pyaudio else f"Microphone error: {exc}"
+            )
             log.error(msg)
             self._on_error(msg)
         finally:
-            self._listening = False
+            self._is_listening = False
             log.info("STT thread finished")

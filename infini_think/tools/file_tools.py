@@ -13,6 +13,9 @@ Available tools
 - ``organize_downloads()`` — sort Downloads into sub-folders by type
 - ``create_folder(name)`` — create a new folder in the current user home
 - ``search_files(query)`` — find files matching a name pattern
+- ``write_file(path, content)`` — create or overwrite a file with text content
+- ``delete_file(path)`` — delete a file or folder (use with caution)
+- ``rename_item(path, new_name)`` — rename a file or folder
 """
 
 from __future__ import annotations
@@ -148,7 +151,7 @@ def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
 
     return None
 
-def open_folder(path: str) -> str:
+def open_folder(path: str, *args) -> str:
     """Open a folder in the native file explorer.
 
     Accepts friendly names such as ``"downloads"``, ``"desktop"``,
@@ -156,6 +159,7 @@ def open_folder(path: str) -> str:
 
     Args:
         path: Folder path or friendly shorthand.
+        *args: Extra arguments (ignored).
 
     Returns:
         Human-readable status string.
@@ -172,7 +176,7 @@ def open_folder(path: str) -> str:
     return f"Opened folder: {resolved}"
 
 
-def open_file(path: str) -> str:
+def open_file(path: str, *args) -> str:
     """Open a file using the system's default application.
 
     Accepts absolute paths or paths relative to the home directory.
@@ -180,6 +184,7 @@ def open_file(path: str) -> str:
 
     Args:
         path: File path or friendly shorthand.
+        *args: Extra arguments (ignored).
 
     Returns:
         Human-readable status string.
@@ -199,11 +204,12 @@ def open_file(path: str) -> str:
     return f"Opened file: {resolved.name}"
 
 
-def close_folder(path: str) -> str:
+def close_folder(path: str, *args) -> str:
     """Close a specific folder window in the file explorer.
     
     Args:
         path: Folder path or friendly shorthand.
+        *args: Extra arguments (ignored).
         
     Returns:
         Human-readable status string.
@@ -246,7 +252,7 @@ def close_folder(path: str) -> str:
         return msg
 
 
-def close_file(path: str) -> str:
+def close_file(path: str, *args) -> str:
     """Attempt to close a file by terminating its host application.
     
     Because files do not run as independent processes, this uses a heuristic
@@ -255,6 +261,7 @@ def close_file(path: str) -> str:
     
     Args:
         path: File path or friendly shorthand.
+        *args: Extra arguments (ignored).
         
     Returns:
         Human-readable status string.
@@ -369,12 +376,13 @@ def organize_downloads() -> str:
     return msg
 
 
-def create_folder(name: str, parent: str | None = None) -> str:
+def create_folder(name: str, parent: str | None = None, *args) -> str:
     """Create a new folder.
 
     Args:
         name: Folder name (may include nested paths, e.g. ``"Work/2024"``).
         parent: Parent directory path.  Defaults to the user's home directory.
+        *args: Extra arguments (ignored).
 
     Returns:
         Human-readable status string.
@@ -390,7 +398,7 @@ def create_folder(name: str, parent: str | None = None) -> str:
     return f"Created folder: {target}"
 
 
-def read_file(path: str) -> str:
+def read_file(path: str, *args) -> str:
     """Read the text content of a file.
 
     Accepts absolute paths or paths relative to the home directory.
@@ -398,6 +406,7 @@ def read_file(path: str) -> str:
 
     Args:
         path: File path or friendly shorthand.
+        *args: Extra arguments (ignored).
 
     Returns:
         The content of the file (truncated if too long), or an error message.
@@ -437,12 +446,110 @@ def read_file(path: str) -> str:
         return f"Failed to read file: {exc}"
 
 
-def search_files(query: str, root: str | None = None) -> str:
+def write_file(path: str, content: str, *args) -> str:
+    """Create a new file or overwrite an existing one with text content.
+
+    Args:
+        path: File path or friendly shorthand (e.g. "desktop/notes.txt").
+        content: The text to write into the file.
+        *args: Extra arguments (ignored).
+
+    Returns:
+        Human-readable status string.
+    """
+    # Resolve path, but don't require it to exist yet
+    parts = path.replace("\\", "/").split("/")
+    base_shortcut = parts[0].lower()
+    shortcuts: dict[str, Path] = {
+        "downloads": Path.home() / "Downloads",
+        "desktop":   Path.home() / "Desktop",
+        "documents": Path.home() / "Documents",
+    }
+    
+    if base_shortcut in shortcuts:
+        resolved = shortcuts[base_shortcut].joinpath(*parts[1:])
+    elif base_shortcut == "home":
+        resolved = Path.home().joinpath(*parts[1:])
+    else:
+        resolved = Path(path)
+
+    try:
+        # Create parent directories if they don't exist
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(content, encoding="utf-8")
+        log.info("Wrote file: %s", resolved)
+        return f"File written successfully: {resolved}"
+    except Exception as exc:
+        msg = f"Failed to write file '{path}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def delete_file(path: str, *args) -> str:
+    """Delete a file or folder. Use with caution.
+
+    Args:
+        path: Path or shorthand to the item to delete.
+        *args: Extra arguments (ignored).
+
+    Returns:
+        Human-readable status string.
+    """
+    resolved = _smart_find(path, find_dir=True) # Check both files and dirs
+    if not resolved:
+        return f"Item not found to delete: {path}"
+
+    try:
+        if resolved.is_dir():
+            shutil.rmtree(resolved)
+            log.info("Deleted folder: %s", resolved)
+            return f"Deleted folder: {resolved.name}"
+        else:
+            resolved.unlink()
+            log.info("Deleted file: %s", resolved)
+            return f"Deleted file: {resolved.name}"
+    except Exception as exc:
+        msg = f"Failed to delete '{path}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def rename_item(path: str, new_name: str, *args) -> str:
+    """Rename a file or folder.
+
+    Args:
+        path: Current path or shorthand.
+        new_name: The new filename or folder name (not a full path).
+        *args: Extra arguments (ignored).
+
+    Returns:
+        Human-readable status string.
+    """
+    resolved = _smart_find(path, find_dir=True)
+    if not resolved:
+        return f"Item not found to rename: {path}"
+
+    try:
+        target = resolved.parent / new_name
+        if target.exists():
+            return f"Cannot rename: an item named '{new_name}' already exists in {resolved.parent}"
+        
+        resolved.rename(target)
+        log.info("Renamed %s → %s", resolved, target.name)
+        return f"Renamed '{resolved.name}' to '{new_name}'"
+    except Exception as exc:
+        msg = f"Failed to rename '{path}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def search_files(query: str, root: str | None = None, *args) -> str:
     """Recursively search for files whose names contain *query*.
 
     Args:
         query: Case-insensitive substring to search for.
         root: Directory to start the search from.  Defaults to user home.
+        *args: Extra arguments (ignored).
 
     Returns:
         Comma-separated list of matching paths (max 20), or a "not found" msg.

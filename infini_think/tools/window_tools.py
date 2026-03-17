@@ -12,8 +12,12 @@ from infini_think.utils.logger import get_logger
 
 log = get_logger(__name__)
 
-def get_active_window_info() -> str:
+def get_active_window_info(*args, **kwargs) -> str:
     """Return the title of the currently focused window.
+
+    Args:
+        *args:    Extra arguments (ignored).
+        **kwargs: Extra keyword arguments (ignored).
 
     Returns:
         Human-readable window information.

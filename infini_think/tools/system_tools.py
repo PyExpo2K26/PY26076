@@ -10,6 +10,8 @@ for confirmation in the GUI before execution.
 Available tools
 ---------------
 - ``run_terminal_command(command)`` — run a shell command and return output
+- ``execute_powershell(script)``     — run a PowerShell script (Windows only)
+- ``take_screenshot()``              — capture and save a screenshot of the desktop
 - ``shutdown_pc()``                 — initiate a system shutdown
 - ``get_system_info()``             — return hardware/OS information
 """
@@ -19,6 +21,7 @@ from __future__ import annotations
 import platform
 import subprocess
 import sys
+from pathlib import Path
 
 from infini_think.config.settings import settings
 from infini_think.utils.logger import get_logger
@@ -62,6 +65,75 @@ def run_terminal_command(command: str) -> str:
         return msg
     except Exception as exc:  # noqa: BLE001
         msg = f"Command failed: {exc}"
+        log.error(msg)
+        return msg
+
+
+def execute_powershell(script: str) -> str:
+    """Execute a PowerShell script and return its output.
+
+    Args:
+        script: The PowerShell script content or command.
+
+    Returns:
+        The output of the script or an error message.
+    """
+    log.info("Executing PowerShell script")
+    log.debug("Script content: %r", script[:200])
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=settings.command_timeout,
+        )
+        output = (result.stdout + result.stderr).strip()
+        if not output:
+            output = f"Script completed (exit code {result.returncode})."
+        if len(output) > 2000:
+            output = output[:2000] + "\n... (output truncated)"
+        return output
+    except subprocess.TimeoutExpired:
+        return f"PowerShell script timed out after {settings.command_timeout}s."
+    except Exception as exc:
+        return f"PowerShell execution failed: {exc}"
+
+
+def take_screenshot() -> str:
+    """Capture a screenshot of the primary monitor and save it to the Desktop.
+
+    Returns:
+        A message indicating where the screenshot was saved.
+    """
+    import datetime
+    filename = f"screenshot_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    filepath = Path.home() / "Desktop" / filename
+    
+    log.info("Taking screenshot: %s", filepath)
+    
+    # PowerShell snippet to capture screen using .NET
+    # This avoids adding a heavy dependency like 'pillow' or 'pyautogui' if they aren't there.
+    ps_script = f"""
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    $Screen = [System.Windows.Forms.Screen]::PrimaryScreen
+    $Top    = $Screen.Bounds.Top
+    $Left   = $Screen.Bounds.Left
+    $Width  = $Screen.Bounds.Width
+    $Height = $Screen.Bounds.Height
+    $Bitmap = New-Object System.Drawing.Bitmap($Width, $Height)
+    $Graphic = [System.Drawing.Graphics]::FromImage($Bitmap)
+    $Graphic.CopyFromScreen($Left, $Top, 0, 0, $Bitmap.Size)
+    $Bitmap.Save('{str(filepath)}', [System.Drawing.Imaging.ImageFormat]::Png)
+    $Graphic.Dispose()
+    $Bitmap.Dispose()
+    """
+    
+    try:
+        subprocess.run(["powershell", "-Command", ps_script], check=True, capture_output=True)
+        return f"Screenshot saved to your Desktop: {filename}"
+    except Exception as exc:
+        msg = f"Failed to take screenshot: {exc}"
         log.error(msg)
         return msg
 

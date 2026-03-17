@@ -99,12 +99,18 @@ class Executor:
             search_files,
             open_folder,
             close_folder,
+            close_folder,
             open_file,
             close_file,
             read_file,
+            write_file,
+            delete_file,
+            rename_item,
         )
         from infini_think.tools.system_tools import (
             run_terminal_command,
+            execute_powershell,
+            take_screenshot,
             shutdown_pc,
             get_system_info,
         )
@@ -113,6 +119,10 @@ class Executor:
             web_navigate,
             web_extract_text,
             web_fill_and_submit,
+        )
+        from infini_think.tools.intelligence_tools import (
+            summarize_content,
+            extract_data,
         )
 
         self.register("open_app", open_app)
@@ -127,7 +137,12 @@ class Executor:
         self.register("open_file", open_file)
         self.register("close_file", close_file)
         self.register("read_file", read_file)
+        self.register("write_file", write_file)
+        self.register("delete_file", delete_file)
+        self.register("rename_item", rename_item)
         self.register("run_terminal_command", run_terminal_command)
+        self.register("execute_powershell", execute_powershell)
+        self.register("take_screenshot", take_screenshot)
         self.register("shutdown_pc", shutdown_pc)
         self.register("get_system_info", get_system_info)
         self.register("get_active_window_info", get_active_window_info)
@@ -136,6 +151,10 @@ class Executor:
         self.register("web_navigate", web_navigate)
         self.register("web_extract_text", web_extract_text)
         self.register("web_fill_and_submit", web_fill_and_submit)
+        
+        # Intelligence tools
+        self.register("summarize_content", summarize_content)
+        self.register("extract_data", extract_data)
         
         # Built-in lightweight conversational handler
         self.register("talk", lambda msg: msg)
@@ -187,18 +206,10 @@ class Executor:
             log.error("%s\n%s", msg, traceback.format_exc())
             return _make_result(tool_name, args, False, msg, elapsed, str(exc))
         finally:
-            # If this thread used web_tools, close the playwright instance so the thread can exit cleanly
-            if tool_name.startswith("web_"):
-                try:
-                    from infini_think.tools.web_tools import _thread_local
-                    if hasattr(_thread_local, "playwright"):
-                        if hasattr(_thread_local, "page") and _thread_local.page and not _thread_local.page.is_closed():
-                            _thread_local.page.context.close()
-                        _thread_local.playwright.stop()
-                        delattr(_thread_local, "playwright")
-                        delattr(_thread_local, "page")
-                except Exception as e:
-                    log.warning("Failed to clean up thread-local playwright: %s", e)
+            # We no longer close Playwright here because it kills persistent browser sessions
+            # between chained tool calls (e.g. navigate -> fill). 
+            # Browser instances will persist until the thread/app exits or explicitly closed.
+            pass
 
     def execute_plan(self, plan: list[dict[str, Any]]) -> list[ExecutionResult]:
         """Execute an ordered list of commands, stopping on critical failure.

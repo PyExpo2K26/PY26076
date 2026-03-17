@@ -34,68 +34,24 @@ log = get_logger(__name__)
 # Prompt
 # ---------------------------------------------------------------------------
 
-_PLANNER_SYSTEM = """You are InfiniThink's task planner.
-
-Given a user request, output a JSON array of tool commands to fulfill it.
-Each element must have "tool" and "args" keys.
-
-Available tools:
-- open_app(app_name: str)
-- close_app(app_name: str)
-- open_url(url: str, browser: str = "chrome")
-- open_folder(path: str)
-- close_folder(path: str)
-- open_file(path: str)
-- close_file(path: str)
-- read_file(path: str) (supports pdf and docx)
-- open_vscode(path: str = "")
-- web_navigate(url: str)
-- web_extract_text()
-- web_fill_and_submit(url: str, element_description: str, text: str)
-- search_files(query: str)
-- create_folder(name: str)
-- organize_downloads()
-- run_terminal_command(command: str)
-- get_system_info()
-- get_active_window_info()
-- talk(message: str)
+_PLANNER_SYSTEM = """You are Task Planner. Output a JSON array of tools for request.
+Tools:
+- open_app(n), close_app(n)
+- open_url(u, b='chrome'), open_folder(p), close_folder(p)
+- open_file(p), close_file(p), read_file(p)
+- write_file(p, c), delete_file(p), rename_item(p, n)
+- open_vscode(p?), web_navigate(u), web_extract_text()
+- web_fill_and_submit(u, e, t), search_files(q), create_folder(n)
+- organize_downloads(), run_terminal_command(c), shutdown_pc()
+- summarize_content(p), extract_data(p, q), talk(m)
 
 Rules:
-1. Reply ONLY with a JSON array. No explanation. No markdown. No code fence.
-2. Order actions logically (e.g. create folder before placing files inside).
-3. Maximum {max_steps} actions.
-4. For simple requests with a single action output an array with one element.
+1. ONLY JSON array. No prose.
+2. Logical order. Max {max_steps} steps.
 
 Examples:
-  "prepare my research workspace"
-  → [{{ "tool":"open_app","args":["chrome"] }},{{ "tool":"open_app","args":["notion"] }},{{ "tool":"open_folder","args":["research"] }}]
-
-  "open notepad"
-  → [{{ "tool":"open_app","args":["notepad"] }}]
-
-  "close whatsapp and open chrome"
-  → [{{ "tool":"close_app","args":["whatsapp"] }},{{ "tool":"open_app","args":["chrome"] }}]
-
-  "organize downloads and open explorer"
-  → [{{ "tool":"organize_downloads","args":[] }},{{ "tool":"open_folder","args":["downloads"] }}]
-
-  "close my project document"
-  → [{{ "tool":"close_file","args":["project"] }}]
-
-  "open gemini in chrome"
-  → [{{ "tool":"open_url","args":["gemini.google.com", "chrome"] }}]
-
-  "what's in my current window?"
-  → [{{ "tool":"get_active_window_info","args":[] }}]
-
-  "read the readme file"
-  → [{{ "tool":"read_file","args":["README.md"] }}]
-
-  "ask gemini how to bake a cake"
-  → [{{ "tool":"web_fill_and_submit","args":["gemini.google.com", "chat prompt input", "how to bake a cake"] }}]
-
-  "close chatgpt in chrome"
-  → [{{ "tool":"close_app","args":["chrome"] }}]
+- research workspace -> [[{{ "tool":"open_app","args":["chrome"] }},{{ "tool":"open_folder","args":["research"] }}]]
+- ask gemini how to bake -> [[{{ "tool":"web_fill_and_submit","args":["gemini.google.com","prompt","how to bake"] }}]]
 """.format(max_steps=settings.max_plan_steps)
 
 
@@ -104,20 +60,21 @@ Examples:
 # ---------------------------------------------------------------------------
 
 _SINGLE_STEP_KEYWORDS = re.compile(
-    r"^(open|launch|start|run|show|display|search|find|create|make|shutdown|restart)\s",
+    r"^(open|launch|start|run|show|display|search|find|create|make|shutdown|restart|write|delete|rename|summarize|extract|take)\s",
     re.IGNORECASE,
 )
 
 
 def _looks_complex(text: str) -> bool:
     """Heuristic: return True if the request is likely multi-step."""
-    conjunctions = ("and", "then", "after that", "also", "plus", "next")
+    conjunctions = ("and", "then", "after that", "also", "plus", "next", "then also")
     lower = text.lower()
     return any(f" {c} " in lower for c in conjunctions) or (
         lower.startswith("prepare ")
         or lower.startswith("set up ")
         or lower.startswith("setup ")
         or lower.startswith("organize ")
+        or lower.count(" ") > 8 # Heuristic: long sentences are likely complex
     )
 
 
@@ -198,7 +155,7 @@ class TaskPlanner:
             raw = self._engine.generate(
                 prompt=user_input,
                 system=_PLANNER_SYSTEM,
-                temperature=0.2,
+                temperature=0.1,
             )
         except AIEngineError as exc:
             log.error("Planner LLM error: %s", exc)

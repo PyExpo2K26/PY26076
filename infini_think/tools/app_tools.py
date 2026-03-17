@@ -15,6 +15,7 @@ Available tools
 
 from __future__ import annotations
 
+import os
 import platform
 import subprocess
 from pathlib import Path
@@ -116,11 +117,7 @@ def _resolve_app_name(app_name: str) -> str:
     return _UNIX_APP_MAP.get(key, key)
 
 
-<<<<<<< HEAD:Project/infini_think/tools/app_tools.py
-def open_app(app_name: str, *args) -> str:
-=======
 def open_app(app_name: str, *args, **kwargs) -> str:
->>>>>>> 53ffe03c7dae6e25bdbeb8867a1c8f42a3485fa9:infini_think/tools/app_tools.py
     """Launch an application by its friendly name.
 
     Args:
@@ -188,12 +185,13 @@ def open_app(app_name: str, *args, **kwargs) -> str:
         return msg
 
 
-def open_url(url: str, browser: str = "chrome") -> str:
+def open_url(url: str, browser: str = "chrome", *args) -> str:
     """Open a specific URL in a browser.
 
     Args:
         url: The website URL to open.
         browser: The browser to use (default "chrome").
+        *args:    Extra arguments (ignored).
 
     Returns:
         Human-readable status string.
@@ -226,17 +224,34 @@ def open_url(url: str, browser: str = "chrome") -> str:
         return msg
 
 
-def open_vscode(path: str = "") -> str:
+def open_vscode(path: str = "", *args) -> str:
     """Open Visual Studio Code, optionally at a specific directory or file.
 
     Args:
         path: Optional path to open in VS Code.  If empty, opens the last
               workspace or a blank window.
+        *args: Extra arguments (ignored).
 
     Returns:
         Human-readable status string.
     """
-    cmd: list[str] = ["code"]
+    # Common installation paths on Windows if 'code' is not in PATH
+    potential_paths = []
+    if platform.system() == "Windows":
+        local_app_data = os.getenv("LocalAppData", "")
+        program_files = os.getenv("ProgramFiles", "")
+        if local_app_data:
+            potential_paths.append(Path(local_app_data) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd")
+        if program_files:
+            potential_paths.append(Path(program_files) / "Microsoft VS Code" / "bin" / "code.cmd")
+
+    executable = "code"
+    for p in potential_paths:
+        if p.exists():
+            executable = str(p)
+            break
+
+    cmd: list[str] = [executable]
     if path:
         resolved = Path(path).expanduser()
         cmd.append(str(resolved))
@@ -247,17 +262,18 @@ def open_vscode(path: str = "") -> str:
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            shell=(platform.system() == "Windows")
         )
         if path:
             return f"Opened VS Code at: {path}"
         return "Opened VS Code"
-    except FileNotFoundError:
-        return (
+    except (FileNotFoundError, OSError):
+        raise RuntimeError(
             "VS Code not found. Install it from https://code.visualstudio.com "
             "and ensure 'code' is in your PATH."
         )
     except Exception as exc:  # noqa: BLE001
-        return f"Failed to open VS Code: {exc}"
+        raise RuntimeError(f"Failed to open VS Code: {exc}")
 
 
 def close_app(app_name: str, *args: str) -> str:

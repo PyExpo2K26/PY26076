@@ -37,7 +37,7 @@ from infini_think.core.ai_engine import AIEngine, AIEngineError
 from infini_think.core.command_interpreter import CommandInterpreter
 from infini_think.core.planner import TaskPlanner
 from infini_think.core.executor import Executor
-from infini_think.gui.chat_widget import ChatWidget
+from infini_think.gui.chat_widget import ChatWidget, ThemeProvider
 from infini_think.voice.speech_to_text import SpeechToText
 from infini_think.voice.text_to_speech import TextToSpeech
 from infini_think.utils.logger import get_logger
@@ -59,6 +59,7 @@ class _AIWorker(QObject):
     """
 
     result_ready = Signal(list)   # list[ExecutionResult]
+    chunk_ready = Signal(str)    # New: for streaming
     error = Signal(str)
     finished = Signal()
 
@@ -76,11 +77,14 @@ class _AIWorker(QObject):
     @Slot()
     def run(self) -> None:
         try:
+            self.chunk_ready.emit("Analyzing request...")
+            # Plan first
             plan = self._planner.plan(self._user_input)
+            
+            self.chunk_ready.emit(f"Executing {len(plan)} task(s)...")
+            # Execute and emit results
             results = self._executor.execute_plan(plan)
             self.result_ready.emit(results)
-        except AIEngineError as exc:
-            self.error.emit(str(exc))
         except Exception as exc:  # noqa: BLE001
             log.exception("Worker encountered unexpected error")
             self.error.emit(f"Unexpected error: {exc}")
@@ -92,21 +96,24 @@ class _AIWorker(QObject):
 # MainWindow
 # ---------------------------------------------------------------------------
 
-_TITLE_STYLE = (
-    "QLabel { color: #58a6ff; font-size: 18px; font-weight: 700; "
-    "background: transparent; padding: 0 8px; }"
-)
+# ---------------------------------------------------------------------------
+# Dynamic Styles
+# ---------------------------------------------------------------------------
 
-_STATUS_STYLE = "QStatusBar { background: #0d1117; color: #8b949e; font-size: 9px; }"
+def get_window_style():
+    c = ThemeProvider.colors()
+    return f"""
+        QMainWindow, QWidget#central {{
+            background: {c['sidebar_bg']};
+            border-left: 1px solid {c['border']};
+        }}
+    """
 
-_WINDOW_STYLE = """
-QMainWindow, QWidget#central {
-    background: rgba(13, 17, 23, 180);
-    border-left: 1px solid #30363d;
-}
-"""
+def get_title_style():
+    c = ThemeProvider.colors()
+    return f"QLabel {{ color: {c['accent']}; font-size: 17px; font-weight: 700; background: transparent; }}"
 
-_SIDEBAR_WIDTH = 350
+_SIDEBAR_WIDTH = 360  # Slightly narrower for a cleaner look
 
 
 class MainWindow(QMainWindow):
@@ -168,7 +175,7 @@ class MainWindow(QMainWindow):
         
         self.setWindowTitle(settings.window_title)
         self._reposition_sidebar()
-        self.setStyleSheet(_WINDOW_STYLE)
+        self.update_styles()
 
         # --- Central widget ---
         central = QWidget()
@@ -211,47 +218,80 @@ class MainWindow(QMainWindow):
             log.info("Sidebar shown")
 
     def _build_header(self) -> QWidget:
-        """Return the styled header bar widget."""
-        header = QWidget()
-        header.setFixedHeight(52)
-        header.setStyleSheet(
-            "background: #161b22; border-bottom: 1px solid #30363d;"
-        )
-        h_layout = QHBoxLayout(header)
-        h_layout.setContentsMargins(16, 0, 16, 0)
+        """Return the styled header bar widget with theme toggle."""
+        self._header = QWidget()
+        self._header.setFixedHeight(54) # Slimmer header
+        self.update_header_styles()
+        
+        h_layout = QHBoxLayout(self._header)
+        h_layout.setContentsMargins(16, 0, 12, 0)
+        h_layout.setSpacing(8)
 
         # Logo + title
-        title = QLabel("⚡ InfiniThink")
-        title.setStyleSheet(_TITLE_STYLE)
-        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        self._title_label = QLabel("⚡ InfiniThink")
+        self._title_label.setFont(QFont("Segoe UI Variable Display", 13, QFont.Weight.Bold))
+        
+        self._subtitle_label = QLabel("v1.4.0 Proxy")
+        self._subtitle_label.setStyleSheet("font-size: 10px; opacity: 0.6;")
 
-        subtitle = QLabel("Local AI Agent")
-        subtitle.setStyleSheet(
-            "color: #8b949e; font-size: 10px; background: transparent; padding: 0 4px;"
-        )
-
-        h_layout.addWidget(title)
-        h_layout.addWidget(subtitle)
+        h_layout.addWidget(self._title_label)
+        h_layout.addWidget(self._subtitle_label)
         h_layout.addStretch()
+
+        # Theme Toggle
+        self._theme_btn = QPushButton("☀️") # Show Sun because we are in Dark Mode initially
+        self._theme_btn.setFixedSize(36, 36)
+        self._theme_btn.setToolTip("Toggle Theme")
+        self._theme_btn.clicked.connect(self._on_theme_toggle)
+        h_layout.addWidget(self._theme_btn)
 
         # Ollama status indicator
         self._ollama_indicator = QLabel("●")
-        self._ollama_indicator.setStyleSheet(
-            "color: #d29922; font-size: 10px; background: transparent;"
-        )
+        self._ollama_indicator.setToolTip("Ollama Status")
         h_layout.addWidget(self._ollama_indicator)
 
-        # Close button for the sidebar
+        # Close button
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(30, 30)
         close_btn.clicked.connect(self.hide)
-        close_btn.setStyleSheet(
-            "QPushButton { background: transparent; color: #8b949e; font-size: 16px; border: none; }"
-            "QPushButton:hover { color: #da3633; }"
-        )
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         h_layout.addWidget(close_btn)
 
-        return header
+        return self._header
+
+    def update_styles(self) -> None:
+        """Update window and sub-widget styles based on current theme."""
+        c = ThemeProvider.colors()
+        self.setStyleSheet(get_window_style())
+        if hasattr(self, "_chat"):
+            self._chat.update_styles()
+        if hasattr(self, "_header"):
+            self.update_header_styles()
+            self._title_label.setStyleSheet(get_title_style())
+            self._subtitle_label.setStyleSheet(f"color: {c['timestamp']}; background: transparent;")
+            self._theme_btn.setStyleSheet(
+                f"QPushButton {{ background: {c['welcome_bg']}; border-radius: 18px; border: 1px solid {c['border']}; "
+                f"font-size: 16px; color: {c['ai_text']}; }}"
+                f"QPushButton:hover {{ background: {c['surface']}; }}"
+            )
+
+    def update_header_styles(self) -> None:
+        c = ThemeProvider.colors()
+        self._header.setStyleSheet(
+            f"QWidget {{ background: {c['surface']}; border-bottom: 1px solid {c['border']}; }}"
+            f"QPushButton {{ background: transparent; color: {c['timestamp']}; font-size: 16px; border: none; }}"
+            f"QPushButton:hover {{ color: {c['accent']}; }}"
+        )
+
+    @Slot()
+    def _on_theme_toggle(self) -> None:
+        """Switch between dark and light themes."""
+        current = ThemeProvider._current
+        new_theme = "light" if current == "dark" else "dark"
+        self._theme_btn.setText("☀️" if new_theme == "light" else "🌙")
+        self._chat.switch_theme(new_theme)
+        self.update_styles()
+        log.info("Theme switched to: %s", new_theme)
 
     def _build_menu(self) -> None:
         """Construct the application menu bar."""
@@ -317,6 +357,7 @@ class MainWindow(QMainWindow):
 
         thread.started.connect(worker.run)
         worker.result_ready.connect(self._on_results_ready)
+        worker.chunk_ready.connect(self._on_ai_chunk)  # New: connect chunk signal
         worker.error.connect(self._on_worker_error)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
@@ -337,7 +378,10 @@ class MainWindow(QMainWindow):
             output = result.get("output", "")
             elapsed = result.get("elapsed", 0.0)
 
-            if success:
+            if tool == "talk":
+                # Natural conversation doesn't need status icons
+                msg = output
+            elif success:
                 msg = f"✅  {output}"
                 log.info("Executed '%s' in %.3fs", tool, elapsed)
             else:
@@ -386,7 +430,15 @@ class MainWindow(QMainWindow):
         self.stt_error_occurred.emit(msg)
 
     @Slot(str)
+    def _on_ai_chunk(self, chunk: str) -> None:
+        """Called when a new token chunk arrives from the AI."""
+        if self.statusBar():
+            self.statusBar().showMessage(f"AI: {chunk}")
+        log.debug("AI Chunk: %s", chunk)
+
+    @Slot(str)
     def _handle_stt_error(self, msg: str) -> None:
+        """Called on the GUI thread when the STT worker hits a snag."""
         self._chat.add_system_message(f"⚠️ Voice error: {msg}")
         self._chat.set_mic_active(False)
 

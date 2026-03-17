@@ -38,16 +38,10 @@ class Settings:
     CI / Docker / power-users can override without touching code.
     """
 
-    # --- Ollama / LLM -------------------------------------------------------
-    ollama_base_url: str = field(
-        default_factory=lambda: os.getenv("INFINI_OLLAMA_URL", "http://localhost:11434")
-    )
-    ollama_model: str = field(
-        default_factory=lambda: os.getenv("INFINI_OLLAMA_MODEL", "llama3")
-    )
-    ollama_timeout: int = field(
-        default_factory=lambda: int(os.getenv("INFINI_OLLAMA_TIMEOUT", "60"))
-    )
+    # --- AI Engine (Ollama) ---
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3"
+    ollama_timeout: int = 120  # Increased from 60 to allow for first-load latency
     ollama_stream: bool = False  # Streaming disabled for simpler integration
 
     # --- Voice ---------------------------------------------------------------

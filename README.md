@@ -66,50 +66,19 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a full layer-by-layer breakdown.
 
 ---
 
-## 📦 Project Structure
+## 📂 Project Structure
 
 ```
-Project/
-├── __init__.py             ← Package root
-├── pyproject.toml          ← Packaging & entry point
-├── requirements.txt        ← Runtime deps
-│
-├── app/
-│   └── launcher.py         ← Entry point: infini-think CLI command
-│
-├── gui/
-│   ├── main_window.py      ← QMainWindow + AI worker thread
-│   ├── chat_widget.py      ← Scrollable chat, message bubbles
-│   └── voice_controls.py   ← Mic button with animation
-│
-├── voice/
-│   ├── speech_to_text.py   ← SpeechRecognition (background thread)
-│   └── text_to_speech.py   ← pyttsx3 async queue
-│
-├── core/
-│   ├── ai_engine.py        ← Ollama REST client
-│   ├── command_interpreter.py ← NL → JSON command via LLM
-│   ├── planner.py          ← Multi-step task planning
-│   └── executor.py         ← Tool registry + dispatch
-│
-├── tools/
-│   ├── app_tools.py        ← open_app(), open_vscode()
-│   ├── file_tools.py       ← organize_downloads(), search_files(), ...
-│   └── system_tools.py     ← run_terminal_command(), get_system_info(), ...
-│
-├── interfaces/
-│   ├── cli_interface.py    ← Coloured CLI REPL
-│   ├── text_interface.py   ← Shared data types & base class
-│   └── voice_interface.py  ← Headless voice loop
-│
-├── config/
-│   └── settings.py         ← Central config (env-var overrides)
-│
-├── utils/
-│   └── logger.py           ← Rotating file + colour console logger
-│
-└── tests/
-    └── test_basic.py       ← Unit tests (no Ollama required)
+.
+├── infini_think/           ← Core package (gui, core, tools, voice)
+├── assets/                 ← Application icons and media
+├── tests/                  ← Unit testing suite
+├── .gitignore              ← GitHub exclusion rules
+├── requirements.txt        ← Standard runtime dependencies
+├── README.md               ← Main documentation
+├── LICENSE                 ← MIT License (Private/Internal)
+├── ARCHITECTURE.md         ← Technical architecture breakdown
+└── pyproject.toml          ← Python packaging and entry points
 ```
 
 ---
@@ -128,7 +97,7 @@ Project/
 
 ```bash
 git clone https://github.com/your-org/infini-think.git
-cd infini-think/Project
+cd infini-think
 pip install -r requirements.txt
 ```
 
@@ -237,8 +206,7 @@ All settings in `config/settings.py` can be overridden via environment variables
 - [ ] **Plugin system** — drop-in tools via Python entry points
 - [ ] **Contextual memory** — conversation history across sessions
 - [ ] **Background agents** — scheduled and event-triggered automation
-- [ ] **Workflow recorder** — record + replay multi-step automations
-- [ ] **Light theme** — toggle in menu
+- [x] **Premium UI & Themes** — dynamic Dark/Light mode toggle
 - [ ] **Custom hotkey** — global shortcut to open InfiniThink
 - [ ] **Windows tray icon** — always-on background mode
 
