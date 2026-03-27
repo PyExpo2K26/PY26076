@@ -13,7 +13,7 @@ Features:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QPoint, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation
+from PySide6.QtCore import Qt, QPoint, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QTimer
 from PySide6.QtGui import QPixmap, QMouseEvent, QEnterEvent, QColor, QImage
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
 
@@ -63,6 +63,13 @@ class AgentBubble(QWidget):
         self._icon_label.setGraphicsEffect(self._glow)
         
         layout.addWidget(self._icon_label)
+
+        # Status HUD Label
+        self._status_label = QLabel("", self)
+        self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._status_label.setWordWrap(True)
+        self._status_label.hide() # Hidden by default
+        self._update_status_style()
         
         # Pulse Animation for Thinking
         self._pulse_anim = QPropertyAnimation(self._glow, b"blurRadius")
@@ -130,6 +137,43 @@ class AgentBubble(QWidget):
             self._glow.setBlurRadius(25)
         
         self._set_icon_content(thinking)
+        if not thinking:
+            self.set_status("")
+
+    def set_status(self, text: str) -> None:
+        """Update the HUD text and visibility."""
+        if not text:
+            self._status_label.hide()
+            return
+        
+        self._status_label.setText(text)
+        self._status_label.adjustSize()
+        
+        # Position the label above or to the left of the bubble
+        self._status_label.move(
+            (self.width() - self._status_label.width()) // 2,
+            -20 # Slightly above the bubble
+        )
+        self._status_label.show()
+        
+        # Auto-hide after 3 seconds if not thinking
+        if self._pulse_anim.state() != QPropertyAnimation.State.Running:
+            QTimer.singleShot(3000, lambda: self._status_label.hide() if self._pulse_anim.state() != QPropertyAnimation.State.Running else None)
+
+    def _update_status_style(self) -> None:
+        """Stylize the HUD label with a premium glass look."""
+        self._status_label.setStyleSheet(
+            "QLabel { "
+            "background: rgba(22, 27, 34, 230); "
+            "color: #58a6ff; "
+            "border: 1px solid rgba(88, 166, 255, 0.4); "
+            "border-radius: 8px; "
+            "padding: 4px 10px; "
+            "font-family: 'Segoe UI Variable Text'; "
+            "font-size: 10px; "
+            "font-weight: 600; "
+            "}"
+        )
 
     def _set_icon_content(self, is_thinking: bool = False) -> None:
         """Loads and sets the icon content based on state, with transparency processing and caching."""

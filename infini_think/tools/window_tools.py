@@ -104,25 +104,45 @@ def analyze_active_window(*args, **kwargs) -> str:
     
     try {
         $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hWnd)
-        $condition = [System.Windows.Automation.Condition]::TrueCondition
-        $elements = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        
+        # Performance optimization: Only fetch direct children and important subtypes
+        # This is much faster than fetching all Descendants for complex apps
+        $elements = $ae.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
         
         $content = @()
         foreach ($el in $elements) {
             $name = $el.Current.Name
+            $type = $el.Current.ControlType.ProgrammaticName
             $value = ""
-            try {
-                $pattern = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-                $value = $pattern.Current.Value
-            } catch {}
             
-            if ($name -or $value) {
-                $item = ""
-                if ($name) { $item += $name }
+            # Only process visible/meaningful elements to reduce noise and time
+            if ($name -or $el.Current.IsEnabled) {
+                try {
+                    if ($el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)) {
+                        $value = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+                    }
+                } catch {}
+                
+                $item = "$name"
                 if ($value) { $item += " ($value)" }
-                $content += $item
+                if ($item.Trim()) { $content += $item }
             }
         }
+        
+        # If too few elements, try one level deeper for buttons/links specifically
+        if ($content.Count -lt 5) {
+            $subCondition = [System.Windows.Automation.OrCondition]::new(
+                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsControlElementProperty, $true),
+                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsContentElementProperty, $true)
+            )
+            $subElements = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $subCondition)
+            foreach ($el in $subElements) {
+                if ($content.Count -gt 50) { break } # Cap it
+                $n = $el.Current.Name
+                if ($n -and $content -notcontains $n) { $content += $n }
+            }
+        }
+
         $content | Select-Object -Unique | Out-String
     } catch {
         "Failed to access window elements: $_"

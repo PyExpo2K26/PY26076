@@ -116,6 +116,11 @@ def _launch_gui() -> None:
     # Connect bubble click to toggle sidebar
     bubble.clicked.connect(sidebar.toggle_visibility)
     
+    # Connect AI activity signals for interactivity
+    sidebar.ai_thinking_started.connect(lambda: bubble.set_thinking(True))
+    sidebar.ai_thinking_finished.connect(lambda: bubble.set_thinking(False))
+    sidebar.ai_status_update.connect(bubble.set_status)
+    
     bubble.show()
     # sidebar is hidden by default
     

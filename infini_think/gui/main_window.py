@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt, QThread, Signal, QObject, Slot
+from PySide6.QtCore import Qt, QThread, Signal, QObject, Slot, QTimer
 from PySide6.QtGui import QFont, QAction, QIcon
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -124,6 +124,11 @@ class MainWindow(QMainWindow):
 
     stt_result_ready = Signal(str)
     stt_error_occurred = Signal(str)
+    
+    # New: Interactivity Signals
+    ai_thinking_started = Signal()
+    ai_thinking_finished = Signal()
+    ai_status_update = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -376,11 +381,15 @@ class MainWindow(QMainWindow):
 
         self._threads.append(thread)
         thread.start()
+        
+        self.ai_thinking_started.emit()
+        self.ai_status_update.emit("Thinking...")
 
     @Slot(list)
     def _on_results_ready(self, results: list[dict]) -> None:
         """Called on the GUI thread when AI execution results arrive."""
         self._chat.set_thinking(False)
+        self.ai_thinking_finished.emit()
 
         for result in results:
             tool = result.get("tool", "?")
@@ -389,23 +398,46 @@ class MainWindow(QMainWindow):
             elapsed = result.get("elapsed", 0.0)
 
             if tool == "talk":
-                # Natural conversation doesn't need status icons
-                msg = output
+                # Use a typing effect for natural conversation
+                self._stream_ai_message(output)
             elif success:
                 msg = f"✅  {output}"
                 log.info("Executed '%s' in %.3fs", tool, elapsed)
+                self._chat.add_ai_message(msg)
             else:
                 msg = f"❌  {output}"
                 log.warning("Tool '%s' failed: %s", tool, output)
+                self._chat.add_ai_message(msg)
 
-            self._chat.add_ai_message(msg)
             if self._tts and success:
                 self._tts.speak(output)
+
+    def _stream_ai_message(self, full_text: str) -> None:
+        """Simulate a streaming typing effect for better UX."""
+        # Add an empty AI bubble first
+        self._chat.add_ai_message("")
+        
+        # We'll split by words or small chunks to make it look smooth
+        words = full_text.split(" ")
+        index = 0
+        
+        def type_next():
+            nonlocal index
+            if index < len(words):
+                chunk = (words[index] + " ") if index < len(words) - 1 else words[index]
+                self._chat.update_last_ai_message(chunk)
+                index += 1
+                # Faster typing for longer messages
+                delay = max(10, 50 - (len(full_text) // 10))
+                QTimer.singleShot(delay, type_next)
+        
+        type_next()
 
     @Slot(str)
     def _on_worker_error(self, error_msg: str) -> None:
         """Called when the background worker encounters a fatal error."""
         self._chat.set_thinking(False)
+        self.ai_thinking_finished.emit()
         self._chat.add_ai_message(f"❌  Error: {error_msg}")
         if self._tts:
             self._tts.speak("I encountered an error. Please check if Ollama is running.")
@@ -461,6 +493,7 @@ class MainWindow(QMainWindow):
         """Called when a new token chunk arrives from the AI."""
         if self.statusBar():
             self.statusBar().showMessage(f"AI: {chunk}")
+        self.ai_status_update.emit(chunk) # Update the bubble HUD
         log.debug("AI Chunk: %s", chunk)
 
     @Slot(str)

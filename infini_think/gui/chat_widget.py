@@ -144,6 +144,9 @@ class MessageBubble(QFrame):
         shadow.setYOffset(2)
         shadow.setColor(QColor(0, 0, 0, 80))
         bubble.setGraphicsEffect(shadow)
+        self._bubble = bubble
+        self._text_label = text_label
+        self._full_text = content
 
         if self._role == "user":
             bubble.setStyleSheet(
@@ -192,6 +195,12 @@ class MessageBubble(QFrame):
             layout.addLayout(row)
 
         self.setStyleSheet("background: transparent; border: none;")
+
+    def append_text(self, text: str) -> None:
+        """Dynamically append text (used for streaming)."""
+        self._full_text += text
+        self._text_label.setText(self._full_text)
+        # Ensure scroll to bottom is handled by the parent
 
 # ---------------------------------------------------------------------------
 # MessageArea
@@ -282,8 +291,31 @@ class ChatWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._mic_active: bool = False
+        self._action_chips: list[QPushButton] = []
         self._build_ui()
         self._add_welcome_message()
+        self._add_quick_actions()
+
+    def _add_quick_actions(self) -> None:
+        """Add interactive recommendation chips."""
+        actions = [
+            ("📝 Summarize", "Summarize the current project structure"),
+            ("🔧 Fix Errors", "Check for and fix common linting issues"),
+            ("📁 List Files", "List the top-level files in this project"),
+            ("⚙️ System", "Check system resource usage"),
+        ]
+        for label, cmd in actions:
+            btn = QPushButton(label)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, c=cmd: self.message_submitted.emit(c))
+            btn.setStyleSheet(
+                f"QPushButton {{ background: {ThemeProvider.colors()['welcome_bg']}; "
+                f"color: {ThemeProvider.colors()['ai_text']}; border-radius: 14px; "
+                f"padding: 6px 12px; font-size: 10px; border: 1px solid {ThemeProvider.colors()['border']}; }}"
+                f"QPushButton:hover {{ background: {ThemeProvider.colors()['surface']}; border-color: {ThemeProvider.colors()['accent']}; }}"
+            )
+            self._chips_layout.addWidget(btn)
+            self._action_chips.append(btn)
 
     def _build_ui(self) -> None:
         c = ThemeProvider.colors()
@@ -327,6 +359,15 @@ class ChatWidget(QWidget):
         input_row.addWidget(self._send_btn)
         
         input_layout.addLayout(input_row)
+
+        # Chips row
+        self._chips_container = QWidget()
+        self._chips_layout = QHBoxLayout(self._chips_container)
+        self._chips_layout.setContentsMargins(0, 4, 0, 0)
+        self._chips_layout.setSpacing(6)
+        self._chips_layout.addStretch()
+        input_layout.addWidget(self._chips_container)
+
         root.addWidget(self._input_container)
         
         self.update_styles()
@@ -344,6 +385,13 @@ class ChatWidget(QWidget):
         self._message_area.update_styles()
         self._input.update_styles()
         self.update_input_styles()
+        for btn in self._action_chips:
+            btn.setStyleSheet(
+                f"QPushButton {{ background: {c['welcome_bg']}; "
+                f"color: {c['ai_text']}; border-radius: 14px; "
+                f"padding: 6px 12px; font-size: 10px; border: 1px solid {c['border']}; }}"
+                f"QPushButton:hover {{ background: {c['surface']}; border-color: {c['accent']}; }}"
+            )
 
     def update_input_styles(self) -> None:
         c = ThemeProvider.colors()
@@ -406,6 +454,20 @@ class ChatWidget(QWidget):
 
     def add_system_message(self, text: str) -> None:
         self._message_area.add_message("system", text)
+
+    def update_last_ai_message(self, chunk: str) -> None:
+        """Appends text to the very last AI message bubble."""
+        container = self._message_area._container
+        layout = self._message_area._layout
+        # Find the last MessageBubble that is an AI role
+        for i in range(layout.count() - 1, -1, -1):
+            item = layout.itemAt(i)
+            if item and item.widget() and isinstance(item.widget(), MessageBubble):
+                bubble = item.widget()
+                if bubble._role == "ai":
+                    bubble.append_text(chunk)
+                    self._message_area._scroll_to_bottom()
+                    break
 
     def set_thinking(self, thinking: bool) -> None:
         self._send_btn.setEnabled(not thinking)
