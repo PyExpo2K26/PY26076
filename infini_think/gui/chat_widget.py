@@ -178,7 +178,20 @@ class MessageBubble(QFrame):
             row = QHBoxLayout()
             row.addWidget(avatar, alignment=Qt.AlignmentFlag.AlignTop)
             row.addWidget(bubble, stretch=1)
-            row.setContentsMargins(0, 0, 40, 0)
+            
+            # Copy button (hidden by default, shown on hover/touch)
+            self._copy_btn = QPushButton("📋")
+            self._copy_btn.setFixedSize(24, 24)
+            self._copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._copy_btn.setToolTip("Copy to clipboard")
+            self._copy_btn.setStyleSheet(
+                f"QPushButton {{ background: {c['surface']}; border-radius: 6px; font-size: 10px; border: 1px solid {c['border']}; color: {c['timestamp']}; }}"
+                f"QPushButton:hover {{ color: {c['accent']}; border-color: {c['accent']}; }}"
+            )
+            self._copy_btn.clicked.connect(self._on_copy)
+            row.addWidget(self._copy_btn, alignment=Qt.AlignmentFlag.AlignBottom)
+            
+            row.setContentsMargins(0, 0, 10, 0)
             layout.addLayout(row)
         else:
             bubble.setStyleSheet(
@@ -195,6 +208,13 @@ class MessageBubble(QFrame):
             layout.addLayout(row)
 
         self.setStyleSheet("background: transparent; border: none;")
+
+    def _on_copy(self) -> None:
+        """Copy bubble text to clipboard and show feedback."""
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(self._full_text)
+        self._copy_btn.setText("✅")
+        QTimer.singleShot(2000, lambda: self._copy_btn.setText("📋") if hasattr(self, "_copy_btn") else None)
 
     def append_text(self, text: str) -> None:
         """Dynamically append text (used for streaming)."""

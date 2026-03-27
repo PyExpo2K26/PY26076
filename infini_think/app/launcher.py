@@ -121,6 +121,9 @@ def _launch_gui() -> None:
     sidebar.ai_thinking_finished.connect(lambda: bubble.set_thinking(False))
     sidebar.ai_status_update.connect(bubble.set_status)
     
+    # Handle file drops on the agent bubble
+    bubble.file_dropped.connect(lambda path: sidebar._on_message_submitted(f"Summarize this file: {path}"))
+    
     bubble.show()
     # sidebar is hidden by default
     

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt, QThread, Signal, QObject, Slot, QTimer
+from PySide6.QtCore import Qt, QThread, Signal, QObject, Slot, QTimer, QPropertyAnimation, QEasingCurve, QPoint
 from PySide6.QtGui import QFont, QAction, QIcon
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -222,15 +222,35 @@ class MainWindow(QMainWindow):
         )
 
     def toggle_visibility(self) -> None:
-        """Toggle the sidebar visibility with a simple show/hide."""
-        if self.isVisible():
-            self.hide()
-            log.info("Sidebar hidden")
+        """Toggle the sidebar visibility with a slide animation."""
+        screen = self.screen().geometry()
+        target_x = screen.width() - _SIDEBAR_WIDTH
+        hidden_x = screen.width()
+
+        if self.isVisible() and self.x() < hidden_x:
+            # Slide Out
+            self._anim = QPropertyAnimation(self, b"pos")
+            self._anim.setDuration(300)
+            self._anim.setStartValue(self.pos())
+            self._anim.setEndValue(QPoint(hidden_x, 0))
+            self._anim.setEasingCurve(QEasingCurve.Type.InCubic)
+            self._anim.finished.connect(self.hide)
+            self._anim.start()
+            log.info("Sidebar sliding out")
         else:
+            # Slide In
+            self.move(hidden_x, 0)
             self.show()
             self.raise_()
             self.activateWindow()
-            log.info("Sidebar shown")
+            
+            self._anim = QPropertyAnimation(self, b"pos")
+            self._anim.setDuration(400)
+            self._anim.setStartValue(QPoint(hidden_x, 0))
+            self._anim.setEndValue(QPoint(target_x, 0))
+            self._anim.setEasingCurve(QEasingCurve.Type.OutBack)
+            self._anim.start()
+            log.info("Sidebar sliding in")
 
     def _build_header(self) -> QWidget:
         """Return the styled header bar widget with theme toggle."""
@@ -419,14 +439,13 @@ class MainWindow(QMainWindow):
         
         # We'll split by words or small chunks to make it look smooth
         words = full_text.split(" ")
-        index = 0
+        state = {"index": 0}
         
         def type_next():
-            nonlocal index
-            if index < len(words):
-                chunk = (words[index] + " ") if index < len(words) - 1 else words[index]
+            if state["index"] < len(words):
+                chunk = (words[state["index"]] + " ") if state["index"] < len(words) - 1 else words[state["index"]]
                 self._chat.update_last_ai_message(chunk)
-                index += 1
+                state["index"] += 1
                 # Faster typing for longer messages
                 delay = max(10, 50 - (len(full_text) // 10))
                 QTimer.singleShot(delay, type_next)

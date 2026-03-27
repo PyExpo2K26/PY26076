@@ -25,6 +25,7 @@ class AgentBubble(QWidget):
     """The floating agent 'bubble' icon with premium animations."""
     
     clicked = Signal()
+    file_dropped = Signal(str)
 
     def __init__(self, icon_path: str) -> None:
         super().__init__()
@@ -44,8 +45,8 @@ class AgentBubble(QWidget):
             Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAcceptDrops(True)
         self.setFixedSize(100, 100)
-        
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         
@@ -124,6 +125,35 @@ class AgentBubble(QWidget):
             self._glow.setColor(QColor("#58a6ff"))
         self._glow.setBlurRadius(25)
         super().leaveEvent(event)
+
+    # ------------------------------------------------------------------
+    # Drag and Drop
+    # ------------------------------------------------------------------
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self._glow.setColor(QColor("#f2cc60")) # Yellow for drop hover
+            self.set_status("Drop to process")
+
+    def dragLeaveEvent(self, event) -> None:
+        if self._pulse_anim.state() == QPropertyAnimation.State.Running:
+            self._glow.setColor(QColor("#3fb950"))
+        else:
+            self._glow.setColor(QColor("#58a6ff"))
+        self.set_status("")
+        event.accept()
+
+    def dropEvent(self, event) -> None:
+        import os
+        urls = event.mimeData().urls()
+        if urls:
+            file_path = urls[0].toLocalFile()
+            self.file_dropped.emit(file_path)
+            # Use os.path.basename to avoid backslashes in f-string expressions
+            fname = os.path.basename(file_path)
+            self.set_status(f"Dropped: {fname}")
+            event.acceptProposedAction()
 
     def set_thinking(self, thinking: bool) -> None:
         """Visual feedback for AI agent states."""

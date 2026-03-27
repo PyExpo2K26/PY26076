@@ -124,3 +124,34 @@ def summarize_active_window(*args, **kwargs) -> str:
     except Exception as exc:
         log.error("Window summarization failed: %s", exc)
         return f"Failed to summarize window: {exc}"
+
+def summarize_project(*args) -> str:
+    """Summarize the current project structure and files.
+    """
+    from infini_think.tools.file_tools import list_directory
+    
+    log.info("Summarizing project structure")
+    
+    # 1. Get project listing
+    listing = list_directory(".")
+    
+    # 2. Summarize via AI
+    engine = AIEngine()
+    prompt = (
+        "You are an expert software architect. Based on the following file and "
+        "directory listing of the current project, provide a high-level summary "
+        "of what this project is and how it is structured (e.g. core logic, "
+        "GUI, tools).\n\n"
+        f"Project Listing:\n{listing}"
+    )
+    
+    try:
+        summary = engine.generate(
+            prompt,
+            system="You are a helpful software engineering assistant.",
+            temperature=0.3
+        )
+        return f"Project Summary:\n\n{summary}"
+    except Exception as exc:
+        log.error("Project summarization failed: %s", exc)
+        return f"Failed to summarize project: {exc}"
