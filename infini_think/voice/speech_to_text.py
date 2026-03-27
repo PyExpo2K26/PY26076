@@ -45,9 +45,11 @@ class SpeechToText:
         self,
         on_result: Callable[[str], None],
         on_error: Callable[[str], None] | None = None,
+        trigger_phrase: str | None = None,
     ) -> None:
         self._on_result = on_result
         self._on_error = on_error or (lambda msg: log.warning("STT error: %s", msg))
+        self._trigger_phrase = trigger_phrase
         self._is_listening = False
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -93,7 +95,12 @@ class SpeechToText:
             daemon=True,
         )
         self._thread.start()
-        log.info("STT listening thread started")
+        log.info("STT listening thread started (Trigger: %r)", self._trigger_phrase)
+
+    def set_trigger_phrase(self, phrase: str | None) -> None:
+        """Update the trigger phrase dynamically."""
+        self._trigger_phrase = phrase
+        log.debug("STT trigger phrase updated to: %r", phrase)
 
     def stop_listening(self) -> None:
         """Signal the background thread to stop after the current phrase."""
@@ -138,8 +145,8 @@ class SpeechToText:
                     try:
                         audio = recogniser.listen(
                             source,
-                            timeout=2,
-                            phrase_time_limit=8, # Extended for complex commands
+                            timeout=1.5, # Slightly snappier
+                            phrase_time_limit=10, # Allow for longer requests
                         )
                         log.debug("Audio captured, sending to recognizer …")
                     except sr.WaitTimeoutError:
@@ -149,14 +156,52 @@ class SpeechToText:
                         break
 
                     try:
-                        text: str = recogniser.recognize_google(audio)
-                        log.info("Recognised: %r", text)
-                        self._on_result(text)
+                        raw_text: str = recogniser.recognize_google(audio)
+                        log.info("Recognised: %r", raw_text)
+                        
+                        text = raw_text.strip()
+                        if not text:
+                            continue
+
+                        trigger = self._trigger_phrase
+                        if trigger:
+                            lower_text = text.lower()
+                            lower_trigger = trigger.lower()
+                            
+                            if lower_trigger in lower_text:
+                                # Found the trigger!
+                                # Extract whatever follows it
+                                parts = lower_text.split(lower_trigger, 1)
+                                command = parts[1].strip()
+                                
+                                # Clean up common punctuation that recognize_google might add
+                                if command.startswith(",") or command.startswith(":"):
+                                    command = command[1:].strip()
+                                
+                                if command:
+                                    log.info("Trigger word heard! Command: %r", command)
+                                    self._on_result(command)
+                                else:
+                                    # Just the wake word was heard.
+                                    # We could optionally beep or acknowledge.
+                                    log.info("Trigger word heard but no command followed.")
+                                    # We still notify the UI that the wake word was heard
+                                    # by sending an empty string or a special signal if needed.
+                                    # For now, let's just ignore empty commands to avoid noise.
+                            else:
+                                log.debug("Speech ignored (did not contain trigger phrase)")
+                        else:
+                            # Direct mode — send everything
+                            self._on_result(text)
+
                     except sr.UnknownValueError:
                         pass # Silently ignore unrecognised speech to keep loop alive
                     except sr.RequestError as exc:
                         self._on_error(f"STT Service error: {exc}")
-                        break
+                        # Don't break on API error, maybe connection was just flaky
+                        # but wait a bit to avoid hammering
+                        import time
+                        time.sleep(2)
 
         except (OSError, AttributeError) as exc:
             missing_pyaudio = isinstance(exc, AttributeError) and "PyAudio" in str(exc)

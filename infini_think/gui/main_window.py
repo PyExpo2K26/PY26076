@@ -157,12 +157,22 @@ class MainWindow(QMainWindow):
     def _init_voice(self) -> None:
         """Initialise voice I/O components."""
         self._tts = TextToSpeech()
+        
+        # Use wake word if continuous listening is enabled
+        trigger = settings.stt_wake_word if settings.stt_continuous_listening else None
+        
         self._stt = SpeechToText(
             on_result=self._on_stt_result,
             on_error=self._on_stt_error,
+            trigger_phrase=trigger
         )
         self.stt_result_ready.connect(self._handle_stt_result)
         self.stt_error_occurred.connect(self._handle_stt_error)
+
+        # Start listening automatically if continuous mode is on
+        if settings.stt_continuous_listening and self._stt.is_available:
+            self._stt.start_listening()
+            log.info("Continuous listening enabled (wake word: %r)", settings.stt_wake_word)
 
     def _build_ui(self) -> None:
         """Construct the main window layout as a sidebar."""
@@ -409,11 +419,21 @@ class MainWindow(QMainWindow):
         """Start or stop the speech recogniser when the mic button is clicked."""
         if not self._stt:
             return
+            
         if active:
+            # If we are in continuous mode, temporarily disable the trigger for direct input
+            if settings.stt_continuous_listening:
+                self._stt.set_trigger_phrase(None)
+                
             self._stt.start_listening()
             self._chat.add_system_message("🎤 Listening… speak your command.")
         else:
-            self._stt.stop_listening()
+            # If we are in continuous mode, re-enable the trigger instead of stopping
+            if settings.stt_continuous_listening:
+                self._stt.set_trigger_phrase(settings.stt_wake_word)
+                self._chat.add_system_message(f"👂 Continuous listening active (wake word: {settings.stt_wake_word})")
+            else:
+                self._stt.stop_listening()
 
     def _on_stt_result(self, text: str) -> None:
         """Called from the STT background thread — schedule GUI update safely."""
@@ -422,8 +442,15 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _handle_stt_result(self, text: str) -> None:
         self._chat.add_user_message(f"🎤 {text}")
-        self._chat.set_mic_active(False)
-        self._stt.stop_listening()
+        
+        # If the mic was manually activated (not via continuous wake word), reset it
+        if self._chat._mic_active:
+            self._chat.set_mic_active(False)
+        
+        # Only stop listening if we are NOT in continuous mode
+        if not settings.stt_continuous_listening:
+            self._stt.stop_listening()
+            
         self._on_message_submitted(text)
 
     def _on_stt_error(self, msg: str) -> None:
