@@ -14,7 +14,7 @@ Features:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QPoint, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation
-from PySide6.QtGui import QPixmap, QMouseEvent, QEnterEvent, QColor
+from PySide6.QtGui import QPixmap, QMouseEvent, QEnterEvent, QColor, QImage
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
 
 from infini_think.utils.logger import get_logger
@@ -31,6 +31,7 @@ class AgentBubble(QWidget):
         self._icon_path = icon_path
         self._dragging = False
         self._drag_position = QPoint()
+        self._icon_cache: dict[bool, QPixmap] = {}
         
         self._init_ui()
         log.info("AgentBubble premium initialised.")
@@ -48,13 +49,10 @@ class AgentBubble(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        # We use a stylized emoji/icon for the 'Proxy' feel
-        # 🔮 or 🤖 or ⚡. Let's go with 🔮 (Orbital AI)
-        self._icon_label = QLabel("🔮")
+        # UI Symbol/Logo
+        self._icon_label = QLabel()
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet(
-            "font-size: 48px; background: transparent; color: white;"
-        )
+        self._set_icon_content()
         
         # Premium Glow Effect
         self._glow = QGraphicsDropShadowEffect(self)
@@ -110,7 +108,6 @@ class AgentBubble(QWidget):
         # Hover interaction
         self._glow.setBlurRadius(45)
         self._glow.setColor(QColor("#a5d6ff")) # Lighter blue on hover
-        self._icon_label.setStyleSheet("font-size: 54px; color: white;") # Swell
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEnterEvent) -> None:
@@ -119,7 +116,6 @@ class AgentBubble(QWidget):
         else:
             self._glow.setColor(QColor("#58a6ff"))
         self._glow.setBlurRadius(25)
-        self._icon_label.setStyleSheet("font-size: 48px; color: white;")
         super().leaveEvent(event)
 
     def set_thinking(self, thinking: bool) -> None:
@@ -128,9 +124,45 @@ class AgentBubble(QWidget):
             self._glow.setColor(QColor("#3fb950")) # Green Thinking
             self._pulse_anim.setDuration(600)  # Faster pulse
             self._pulse_anim.start()
-            self._icon_label.setText("⚡")
         else:
             self._glow.setColor(QColor("#58a6ff")) # Idle Blue
             self._pulse_anim.stop()
             self._glow.setBlurRadius(25)
-            self._icon_label.setText("🔮")
+        
+        self._set_icon_content(thinking)
+
+    def _set_icon_content(self, is_thinking: bool = False) -> None:
+        """Loads and sets the icon content based on state, with transparency processing and caching."""
+        if is_thinking in self._icon_cache:
+            self._icon_label.setPixmap(self._icon_cache[is_thinking])
+            return
+
+        pm = QPixmap(self._icon_path)
+        if not pm.isNull():
+            # Dynamically remove solid dark background if it exists (for mask-style icons)
+            # We use an 'alpha = brightness' mapping for premium antialiased edges
+            img = pm.toImage().convertToFormat(QImage.Format_ARGB32)
+            for y in range(img.height()):
+                for x in range(img.width()):
+                    c = img.pixelColor(x, y)
+                    # Use the max of RGB as the new alpha channel for white-on-black icons
+                    alpha = max(c.red(), c.green(), c.blue())
+                    img.setPixelColor(x, y, QColor(255, 255, 255, alpha))
+            processed_pm = QPixmap.fromImage(img)
+
+            # Slightly larger when thinking
+            size = 64 if is_thinking else 58
+            scaled_pm = processed_pm.scaled(
+                size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            )
+            
+            # Cache the result
+            self._icon_cache[is_thinking] = scaled_pm
+            self._icon_label.setPixmap(scaled_pm)
+            self._icon_label.setStyleSheet("background: transparent;")
+        else:
+            # Fallback to emoji
+            emoji = "⚡" if is_thinking else "🔮"
+            self._icon_label.setText(emoji)
+            size = "54px" if is_thinking else "48px"
+            self._icon_label.setStyleSheet(f"font-size: {size}; background: transparent; color: white;")
