@@ -92,7 +92,7 @@ class Executor:
     def _register_default_tools(self) -> None:
         """Import and register all built-in tools."""
         # Import here to avoid circular imports at module load time
-        from infini_think.tools.app_tools import open_app, open_vscode, close_app, open_url
+        from infini_think.tools.app_tools import open_app, open_vscode, close_app, open_url, play_media
         from infini_think.tools.file_tools import (
             organize_downloads,
             create_folder,
@@ -118,6 +118,7 @@ class Executor:
             get_system_info,
             get_process_list,
             kill_process,
+            open_device_settings,
         )
         from infini_think.tools.window_tools import (
             get_active_window_info,
@@ -140,6 +141,7 @@ class Executor:
         self.register("close_app", close_app)
         self.register("open_url", open_url)
         self.register("open_vscode", open_vscode)
+        self.register("play_media", play_media)
         self.register("organize_downloads", organize_downloads)
         self.register("create_folder", create_folder)
         self.register("search_files", search_files)
@@ -161,6 +163,7 @@ class Executor:
         self.register("get_system_info", get_system_info)
         self.register("get_process_list", get_process_list)
         self.register("kill_process", kill_process)
+        self.register("open_device_settings", open_device_settings)
         self.register("get_active_window_info", get_active_window_info)
         self.register("analyze_active_window", analyze_active_window)
         self.register("get_taskbar_info", get_taskbar_info)

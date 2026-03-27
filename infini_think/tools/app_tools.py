@@ -186,18 +186,12 @@ def open_app(app_name: str, *args, **kwargs) -> str:
 
 
 def open_url(url: str, browser: str = "chrome", *args) -> str:
-    """Open a specific URL in a browser.
-
-    Args:
-        url: The website URL to open.
-        browser: The browser to use (default "chrome").
-        *args:    Extra arguments (ignored).
-
-    Returns:
-        Human-readable status string.
+    """Open a URL in the specified web browser.
     """
-    system = platform.system()
+    import webbrowser
     executable = _resolve_app_name(browser)
+    system = platform.system()
+    
     log.info("Opening URL: %r in browser: %r", url, browser)
 
     if not url.startswith("http"):
@@ -205,8 +199,6 @@ def open_url(url: str, browser: str = "chrome", *args) -> str:
 
     try:
         if system == "Windows":
-            # If executable is just 'chrome', start command works.
-            # If it's a full path, it also works.
             subprocess.run(f'start {executable} "{url}"', shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         elif system == "Darwin":
             subprocess.run(["open", "-a", executable, url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -214,14 +206,28 @@ def open_url(url: str, browser: str = "chrome", *args) -> str:
             subprocess.run([executable, url], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return f"Opened {url} in {browser}"
     except Exception as exc:
-        import webbrowser
         webbrowser.open(url)
         return f"Opened {url} (fallback to default browser due to: {exc})"
 
-    except Exception as exc:  # noqa: BLE001
-        msg = f"Failed to open '{url}' in '{browser}': {exc}"
-        log.error(msg)
-        return msg
+
+def play_media(path: str, *args) -> str:
+    """Play a media file (audio/video) using the system default player.
+    """
+    from infini_think.tools.file_tools import _smart_find
+    resolved = _smart_find(path)
+    if not resolved:
+        return f"Media file not found: {path}"
+    
+    import platform
+    log.info("Playing media: %s", resolved)
+    try:
+        if platform.system() == "Windows":
+            os.startfile(str(resolved))
+        else:
+            subprocess.Popen(["xdg-open", str(resolved)])
+        return f"Playing media: {resolved.name}"
+    except Exception as exc:
+        return f"Failed to play media: {exc}"
 
 
 def open_vscode(path: str = "", *args) -> str:

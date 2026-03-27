@@ -109,39 +109,52 @@ def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
 
     # 2. Deep search fallback (highly localized to prevent hangs)
     if "/" in path_str or "\\" in path_str:
-        return None # Don't deep search if user provided a specific (but wrong) path
+        # If it's a specific path, try checking relative to project and home
+        p = Path(path_str)
+        options = [
+            Path.cwd() / p,
+            Path.home() / p,
+            shortcuts["downloads"] / p,
+        ]
+        for opt in options:
+            if opt.exists():
+                return opt
+        return None 
 
-    query = Path(path_str).name.lower()
-    log.info("Path %r not found. Quick-searching common folders for: %r", path_str, query)
+    query = path_str.lower()
+    log.info("Path %r not found. Searching project and common folders for: %r", path_str, query)
     
-    # Only search in Desktop and Documents by default for speed
-    search_dirs = [shortcuts["desktop"], shortcuts["documents"]]
+    # Expand search area
+    search_dirs = [
+        Path.cwd(),
+        shortcuts["desktop"], 
+        shortcuts["documents"],
+        shortcuts["downloads"],
+        shortcuts["videos"],
+        shortcuts["music"]
+    ]
             
-    max_depth = 1 # Reduced from 2 for speed
     for search_dir in search_dirs:
-        if not search_dir.exists():
+        if not search_dir or not search_dir.exists():
             continue
         try:
+            # Walk current level and one level down
+            current_depth = 0
             for root, dirs, files in os.walk(str(search_dir)):
-                # Skip hidden folders
+                # Skip hidden folders & Limit depth to 1 subfolder deep for performance
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
+                depth = root[len(str(search_dir)):].count(os.sep)
+                if depth >= 1:
+                    dirs[:] = []
                 
-                if find_dir:
-                    for d in dirs:
-                        if query in d.lower():
-                            return Path(root) / d
-                else:
-                    for f in files:
-                        if query in f.lower():
-                            return Path(root) / f
-                            res = Path(root) / f
-                            log.info("Deep search matched file: %s", res)
-                            return res
-                
-                # Manual depth control since we only want depth 1
-                break 
-        except (PermissionError, OSError):
-            continue
+                # Check files in current dir
+                for f in files:
+                    if query == f.lower() or query in f.lower():
+                        res = Path(root) / f
+                        log.info("Deep search matched file: %s", res)
+                        return res
+        except Exception as exc:
+            log.debug("Search in %s failed: %s", search_dir, exc)
 
     return None
 

@@ -46,8 +46,9 @@ Tools:
 - summarize_content(p), extract_data(p, q), talk(m)
 
 Rules:
-1. ONLY JSON array. No prose.
+1. ONLY JSON array. No prose. No explanation.
 2. Logical order. Max {max_steps} steps.
+3. BE DIRECT: Execute immediately. Do not ask for confirmation.
 
 Examples:
 - research workspace -> [[{{ "tool":"open_app","args":["chrome"] }},{{ "tool":"open_folder","args":["research"] }}]]

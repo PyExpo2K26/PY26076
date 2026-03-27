@@ -13,20 +13,10 @@ from infini_think.utils.logger import get_logger
 log = get_logger(__name__)
 
 def get_active_window_info(*args, **kwargs) -> str:
-    """Return the title of the currently focused window.
-
-    Args:
-        *args:    Extra arguments (ignored).
-        **kwargs: Extra keyword arguments (ignored).
-
-    Returns:
-        Human-readable window information.
-    """
+    """Return the title of the currently focused window."""
     system = platform.system()
-    
     try:
         if system == "Windows":
-            # Use PowerShell to get the active window title
             ps_script = (
                 "Add-Type '@\n"
                 "using System;\n"
@@ -43,53 +33,18 @@ def get_active_window_info(*args, **kwargs) -> str:
                 "[User32]::GetWindowText($hWnd, $Title, 256) > $null\n"
                 "$Title.ToString()"
             )
-            result = subprocess.run(
-                ["powershell", "-Command", ps_script],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            title = result.stdout.strip()
-            if not title:
-                # Fallback if GetWindowText returns empty
-                res = subprocess.run(
-                    ["powershell", "-Command", "(Get-Process | Where-Object {$_.MainWindowHandle -ne 0} | Sort-Object -Descending StartTime | Select-Object -First 1).MainWindowTitle"],
-                    capture_output=True,
-                    text=True
-                )
-                title = res.stdout.strip()
-            
-            return f"The active window is: {title}" if title else "Could not determine the active window title."
-            
-        elif system == "Darwin":
-            # AppleScript for Mac
-            cmd = "osascript -e 'tell application \"System Events\" to get name of first process whose frontmost is true'"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            return f"The active window belongs to: {result.stdout.strip()}"
-            
-        else:
-            # Linux (xprop)
-            result = subprocess.run(["xprop", "-root", "_NET_ACTIVE_WINDOW"], capture_output=True, text=True)
-            if result.returncode == 0:
-                win_id = result.stdout.split()[-1]
-                title_res = subprocess.run(["xprop", "-id", win_id, "WM_NAME"], capture_output=True, text=True)
-                title = title_res.stdout.split(" = ")[-1].strip('"')
-                return f"The active window is: {title}"
-            return "Active window detection not supported or failed on this Linux setup."
-            
+            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, check=True)
+            return f"Active window: {result.stdout.strip()}"
+        return "Not supported."
     except Exception as exc:
-        log.error("Failed to get window info: %s", exc)
-        return f"Error retrieving window info: {exc}"
+        return f"Error: {exc}"
 
 
 def analyze_active_window(*args, **kwargs) -> str:
-    """Read and summarize the text content of the currently focused window.
-    
-    This tool uses UI Automation to extract names and values of visible 
-    elements (buttons, labels, inputs) in the active window.
+    """Extract and summarize contents of the non-AI active window.
     """
     if platform.system() != "Windows":
-        return "Window content analysis is currently only supported on Windows."
+        return "Window content analysis is only supported on Windows."
 
     log.info("Analyzing active window content via UI Automation")
     
@@ -97,101 +52,73 @@ def analyze_active_window(*args, **kwargs) -> str:
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     
-    $hWnd = (Add-Type -MemberDefinition '
-        [DllImport("user32.dll")]
-        public static extern IntPtr GetForegroundWindow();
-    ' -Name 'User32Win' -PassThru)::GetForegroundWindow()
+    Add-Type -MemberDefinition '
+        [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+        [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int nMaxCount);
+    ' -Name 'User32Win'
+    
+    $hWnd = [User32Win]::GetForegroundWindow()
+    $sb = New-Object System.Text.StringBuilder 256
+    
+    # LOOP UNTIL WE FIND A RELEVANT WINDOW (SKIP INFINITHINK AND SHELL)
+    while ($true) {
+        $sb.Clear()
+        $null = [User32Win]::GetWindowText($hWnd, $sb, 256)
+        $title = $sb.ToString()
+        if ($title -notlike "*InfiniThink*" -and $title -notlike "Program Manager" -and $title -ne "") {
+            break
+        }
+        $hWnd = [User32Win]::GetWindow($hWnd, 2) # GW_HWNDNEXT (get window behind)
+        if ($hWnd -eq 0) { break }
+    }
     
     try {
         $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hWnd)
+        $title = $ae.Current.Name
+        $content = @("Window Title: $title")
         
-        # Performance optimization: Only fetch direct children and important subtypes
-        # This is much faster than fetching all Descendants for complex apps
-        $elements = $ae.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
-        
-        $content = @()
-        foreach ($el in $elements) {
-            $name = $el.Current.Name
-            $type = $el.Current.ControlType.ProgrammaticName
-            $value = ""
-            
-            # Only process visible/meaningful elements to reduce noise and time
-            if ($name -or $el.Current.IsEnabled) {
-                try {
-                    if ($el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)) {
-                        $value = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+        # 1. DEEP SEARCH for URL/Path
+        $edits = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit))
+        foreach ($edge in $edits) {
+            try {
+                if ($edge.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)) {
+                    $v = $edge.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+                    if ($v -like "*://*" -or $v -like "?:\\*") {
+                        $content += "URL/Path: $v"
+                        break
                     }
-                } catch {}
-                
-                $item = "$name"
-                if ($value) { $item += " ($value)" }
-                if ($item.Trim()) { $content += $item }
-            }
+                }
+            } catch {}
         }
         
-        # If too few elements, try one level deeper for buttons/links specifically
-        if ($content.Count -lt 5) {
-            $subCondition = [System.Windows.Automation.OrCondition]::new(
-                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsControlElementProperty, $true),
-                [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::IsContentElementProperty, $true)
-            )
-            $subElements = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $subCondition)
-            foreach ($el in $subElements) {
-                if ($content.Count -gt 50) { break } # Cap it
-                $n = $el.Current.Name
-                if ($n -and $content -notcontains $n) { $content += $n }
-            }
+        # 2. UI Elements
+        $elements = $ae.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+        foreach ($el in $elements) {
+            $n = $el.Current.Name
+            if ($n -and $content -notcontains $n) { $content += $n }
         }
 
-        $content | Select-Object -Unique | Out-String
+        # 3. Final String
+        $content | Out-String
     } catch {
-        "Failed to access window elements: $_"
+        "Error: $_"
     }
     """
     
     try:
-        result = subprocess.run(
-            ["powershell", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-        content = result.stdout.strip()
-        if not content:
-            return "The active window appears to have no readable text elements."
-        
-        # Truncate to avoid overloading context
-        if len(content) > 3000:
-            content = content[:3000] + "... (content truncated)"
-            
-        return f"Content of the active window:\n\n{content}"
+        result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=20)
+        return result.stdout.strip()
     except Exception as exc:
-        log.error("Analysis failed: %s", exc)
-        return f"Error analyzing window: {exc}"
+        return f"Error: {exc}"
 
 
 def get_taskbar_info(*args, **kwargs) -> str:
-    """List all currently open applications that are visible on the taskbar.
-    """
-    if platform.system() != "Windows":
-        return "Taskbar info is currently only supported on Windows."
-
-    log.info("Retrieving running applications (taskbar info)")
-    
-    ps_script = "(Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -Property ProcessName, MainWindowTitle | Sort-Object -Property ProcessName | Format-Table -HideTableHeaders | Out-String).Trim()"
-    
+    """List open applications on the taskbar."""
+    ps_script = "[Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -Property MainWindowTitle | Out-String].Trim()"
     try:
-        result = subprocess.run(
-            ["powershell", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        apps = result.stdout.strip()
-        if not apps:
-            return "No applications with visible windows were found."
-            
-        return f"Running Applications (Taskbar):\n\n{apps}"
+        result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True)
+        return result.stdout.strip()
     except Exception as exc:
-        log.error("Taskbar info failed: %s", exc)
-        return f"Error retrieving taskbar info: {exc}"
+        return f"Error: {exc}"
+

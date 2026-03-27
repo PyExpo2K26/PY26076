@@ -14,6 +14,7 @@ Available tools
 - ``take_screenshot()``              — capture and save a screenshot of the desktop
 - ``shutdown_pc()``                 — initiate a system shutdown
 - ``get_system_info()``             — return hardware/OS information
+- ``open_device_settings(section)`` — open specific Windows settings pages
 """
 
 from __future__ import annotations
@@ -256,6 +257,50 @@ def get_system_info() -> str:
 
     except Exception as exc:  # noqa: BLE001
         return f"Could not retrieve system info: {exc}"
+
+
+def open_device_settings(section: str = "main", *args) -> str:
+    """Open a specific section of the Windows Settings app.
+    
+    Args:
+        section: The settings section to open. Options include: 'main', 'wifi',
+                  'bluetooth', 'display', 'sound', 'notifications', 'power',
+                  'storage', 'apps', 'accounts', 'time', 'gaming', 'accessibility',
+                  'privacy', 'windows-update'.
+    """
+    if platform.system() != "Windows":
+        return "Device settings shortcut is only available on Windows."
+
+    # Map friendly names to Windows ms-settings URIs
+    uri_map = {
+        "main":             "ms-settings:",
+        "wifi":             "ms-settings:network-wifi",
+        "bluetooth":        "ms-settings:bluetooth",
+        "display":          "ms-settings:display",
+        "sound":            "ms-settings:sound",
+        "notifications":    "ms-settings:notifications",
+        "power":            "ms-settings:powersleep",
+        "storage":          "ms-settings:storagesense",
+        "apps":             "ms-settings:appsfeatures",
+        "accounts":         "ms-settings:yourinfo",
+        "time":             "ms-settings:dateandtime",
+        "gaming":           "ms-settings:gaming-gamemode",
+        "accessibility":    "ms-settings:easeofaccess-display",
+        "privacy":          "ms-settings:privacy",
+        "windows-update":   "ms-settings:windowsupdate",
+        "network":          "ms-settings:network",
+        "personalization":  "ms-settings:personalization",
+    }
+
+    key = section.lower().strip()
+    target_uri = uri_map.get(key, uri_map["main"])
+    
+    log.info("Opening device settings: %s (%s)", section, target_uri)
+    try:
+        subprocess.run(f'start {target_uri}', shell=True, check=True)
+        return f"Opened Windows Settings: {section}"
+    except Exception as exc:
+        return f"Failed to open settings: {exc}"
 
 
 def get_process_list(*args, **kwargs) -> str:

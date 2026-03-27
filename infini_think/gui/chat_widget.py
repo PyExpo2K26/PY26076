@@ -237,7 +237,7 @@ class MessageArea(QScrollArea):
         self._container = QWidget()
         self._container.setStyleSheet("background: transparent;")
         self._layout = QVBoxLayout(self._container)
-        self._layout.setContentsMargins(20, 20, 20, 20)
+        self._layout.setContentsMargins(12, 16, 12, 16) # Unified margins
         self._layout.setSpacing(12)
         self._layout.addStretch()
         self.setWidget(self._container)
@@ -306,11 +306,9 @@ class InputBox(QTextEdit):
 
 class ChatWidget(QWidget):
     message_submitted = Signal(str)
-    mic_toggled = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._mic_active: bool = False
         self._action_chips: list[QPushButton] = []
         self._build_ui()
         self._add_welcome_message()
@@ -318,10 +316,21 @@ class ChatWidget(QWidget):
 
     def _add_quick_actions(self) -> None:
         """Add interactive recommendation chips."""
+        # Clear existing chips first to prevent repetition
+        # We iterate backwards to safely remove all layout items 
+        for i in reversed(range(self._chips_layout.count())):
+            item = self._chips_layout.takeAt(i)
+            if item.widget():
+                item.widget().deleteLater()
+            # Spacers/Stretch items are also removed by takeAt(i)
+
+        self._action_chips.clear()
+        self._chips_layout.addStretch() # Restore the stretch on the left for right-alignment
+
         actions = [
-            ("📝 Summarize", "summarize project"),
+            ("📝 Summarize Project", "summarize project"),
             ("📁 List Files", "list files in this directory"),
-            ("⚙️ System", "get system info"),
+            ("⚙️ System Info", "get system info"),
         ]
         for label, cmd in actions:
             btn = QPushButton(label)
@@ -352,29 +361,31 @@ class ChatWidget(QWidget):
         self.update_input_styles()
         
         input_layout = QVBoxLayout(self._input_container)
-        input_layout.setContentsMargins(12, 12, 12, 12)
-        input_layout.setSpacing(8)
+        input_layout.setContentsMargins(12, 12, 12, 12) # Matches message area side margins
+        input_layout.setSpacing(10)
 
         # Input row
         input_row = QHBoxLayout()
         input_row.setSpacing(8)
 
+        # 1. Clear Chat button
+        self._clear_btn = QPushButton("🧹")
+        self._clear_btn.setFixedSize(40, 45)
+        self._clear_btn.setToolTip("Clear Chat")
+        self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._clear_btn.clicked.connect(self.clear_chat)
+        input_row.addWidget(self._clear_btn)
+
+        # 2. Main Input
         self._input = InputBox()
         self._input.returnPressed.connect(self._on_send)
+        input_row.addWidget(self._input, stretch=1)
 
-        self._mic_btn = QPushButton("🎤")
-        self._mic_btn.setFixedSize(45, 45)
-        self._mic_btn.setFont(QFont("Segoe UI", 16))
-        self._mic_btn.setToolTip("Voice Input")
-        self._mic_btn.clicked.connect(self._on_mic_toggle)
-
+        # 4. Send button
         self._send_btn = QPushButton("Send")
         self._send_btn.setFixedSize(75, 45)
         self._send_btn.setFont(QFont("Segoe UI Semibold", 10))
         self._send_btn.clicked.connect(self._on_send)
-
-        input_row.addWidget(self._input, stretch=1)
-        input_row.addWidget(self._mic_btn)
         input_row.addWidget(self._send_btn)
         
         input_layout.addLayout(input_row)
@@ -394,7 +405,6 @@ class ChatWidget(QWidget):
     def update_styles(self) -> None:
         c = ThemeProvider.colors()
         self.setStyleSheet(f"QWidget {{ background: {c['bg']}; border: none; }}")
-        self._mic_btn.setStyleSheet(self._mic_style(self._mic_active))
         self._send_btn.setStyleSheet(
             f"QPushButton {{ background: {c['accent']}; color: white; "
             f"border-radius: 16px; border: none; }}"
@@ -411,6 +421,7 @@ class ChatWidget(QWidget):
                 f"padding: 6px 12px; font-size: 10px; border: 1px solid {c['border']}; }}"
                 f"QPushButton:hover {{ background: {c['surface']}; border-color: {c['accent']}; }}"
             )
+        self._update_btn_style(self._clear_btn) # Apply style to new button
 
     def update_input_styles(self) -> None:
         c = ThemeProvider.colors()
@@ -419,15 +430,12 @@ class ChatWidget(QWidget):
             f"border-top: 1px solid {c['border']}; }}"
         )
 
-    def _mic_style(self, active: bool) -> str:
+    def _update_btn_style(self, btn: QPushButton) -> None:
         c = ThemeProvider.colors()
-        bg = "#da3633" if active else c["surface"]
-        color = "white" if active else c["ai_text"]
-        border = "none" if active else f"1px solid {c['border']}"
-        return (
-            f"QPushButton {{ background: {bg}; color: {color}; border-radius: 16px; "
-            f"border: {border}; font-size: 16px; }}"
-            f"QPushButton:hover {{ background: {'#f85149' if active else c['welcome_bg']}; }}"
+        btn.setStyleSheet(
+            f"QPushButton {{ background: {c['surface']}; border-radius: 18px; "
+            f"border: 1px solid {c['border']}; font-size: 16px; color: {c['ai_text']}; }}"
+            f"QPushButton:hover {{ background: {c['welcome_bg']}; border-color: {c['accent']}; }}"
         )
 
     def _add_welcome_message(self) -> None:
@@ -445,18 +453,16 @@ class ChatWidget(QWidget):
         self.add_user_message(text)
         self.message_submitted.emit(text)
 
-    def _on_mic_toggle(self) -> None:
-        self.set_mic_active(not self._mic_active)
-        self.mic_toggled.emit(self._mic_active)
-
-    def set_mic_active(self, active: bool) -> None:
-        """Programmatically set the microphone button state."""
-        self._mic_active = active
-        self._mic_btn.setStyleSheet(self._mic_style(active=active))
-        if active:
-            self._mic_btn.setText("●") # Recording indicator
-        else:
-            self._mic_btn.setText("🎤")
+    def clear_chat(self) -> None:
+        """Clear all messages from the chat area."""
+        self._message_area.clear()
+        self._add_welcome_message()
+        self._add_quick_actions()
+        # Assuming 'log' is defined elsewhere, if not, this line might cause an error.
+        # For now, keeping it as per instruction.
+        # import logging
+        # log = logging.getLogger(__name__)
+        # log.info("Chat cleared.")
 
     def switch_theme(self, theme: Literal["dark", "light"]) -> None:
         """Dynamically switch the UI theme colors."""

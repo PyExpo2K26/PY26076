@@ -208,7 +208,6 @@ class MainWindow(QMainWindow):
         # --- Chat widget ---
         self._chat = ChatWidget()
         self._chat.message_submitted.connect(self._on_message_submitted)
-        self._chat.mic_toggled.connect(self._on_mic_toggled)
         root.addWidget(self._chat, stretch=1)
 
     def _reposition_sidebar(self) -> None:
@@ -465,20 +464,6 @@ class MainWindow(QMainWindow):
     # Voice
     # ------------------------------------------------------------------
 
-    @Slot(bool)
-    def _on_mic_toggled(self, active: bool) -> None:
-        """Start or stop the speech recogniser when the mic button is clicked."""
-        if not self._stt:
-            return
-            
-        if active:
-            # If we are in continuous mode, temporarily disable the trigger for direct input
-            if settings.stt_continuous_listening:
-                self._stt.set_trigger_phrase(None)
-                
-            self._stt.start_listening()
-            self._chat.add_system_message("🎤 Listening… speak your command.")
-        else:
             # If we are in continuous mode, re-enable the trigger instead of stopping
             if settings.stt_continuous_listening:
                 self._stt.set_trigger_phrase(settings.stt_wake_word)
@@ -493,10 +478,6 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _handle_stt_result(self, text: str) -> None:
         self._chat.add_user_message(f"🎤 {text}")
-        
-        # If the mic was manually activated (not via continuous wake word), reset it
-        if self._chat._mic_active:
-            self._chat.set_mic_active(False)
         
         # Only stop listening if we are NOT in continuous mode
         if not settings.stt_continuous_listening:

@@ -2,29 +2,21 @@
 infini_think.tools.intelligence_tools
 ======================================
 High-level AI-driven tools for document and text intelligence.
-
-These tools leverage the local LLM to perform cognitive tasks like 
-summarization and data extraction.
 """
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 from infini_think.core.ai_engine import AIEngine
-from infini_think.tools.file_tools import read_file
+from infini_think.tools.file_tools import read_file, search_files
 from infini_think.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 def summarize_content(text_or_path: str, *args) -> str:
     """Provide a concise summary of a text string or a file's content.
-
-    Args:
-        text_or_path: Raw text to summarize, or a path to a file (txt, pdf, docx).
-        *args: Extra arguments (ignored).
-
-    Returns:
-        A human-readable summary or an error message.
     """
     content = ""
     # Check if it's a file path
@@ -32,7 +24,6 @@ def summarize_content(text_or_path: str, *args) -> str:
         log.info("Summarizing file: %s", text_or_path)
         content = read_file(text_or_path)
         if content.startswith("File not found") or content.startswith("Path is not a file"):
-            # If read_file fails, maybe it IS just text? Let's check if file exists
             if not Path(text_or_path).exists():
                 content = text_or_path
     else:
@@ -42,33 +33,24 @@ def summarize_content(text_or_path: str, *args) -> str:
         return "Nothing to summarize."
 
     engine = AIEngine()
-    prompt = f"Please provide a concise, high-level summary of the following content:\n\n{content}"
+    prompt = f"Please provide a concise summary of the following content:\n\n{content}"
     
     try:
         summary = engine.generate(
-            prompt, 
-            system="You are a helpful assistant that summarizes documents clearly and accurately.",
+            prompt,
+            system="You are an expert document summarizer.",
             temperature=0.3
         )
         return f"Summary:\n\n{summary}"
     except Exception as exc:
-        log.error("Summarization failed: %s", exc)
         return f"Failed to summarize: {exc}"
 
 
 def extract_data(text_or_path: str, query: str, *args) -> str:
     """Extract specific information from a text string or a file.
-
-    Args:
-        text_or_path: Raw text or file path to analyze.
-        query: What information to look for (e.g. "total amount", "due date").
-        *args: Extra arguments (ignored).
-
-    Returns:
-        The extracted information or an error message.
     """
     content = ""
-    if len(text_or_path) < 255 and ("/" in text_or_path or "\\" in text_or_path or "." in text_or_path):
+    if len(text_or_path) < 255 and (os.sep in text_or_path or "." in text_or_path):
         content = read_file(text_or_path)
         if content.startswith("File not found"):
             content = text_or_path
@@ -79,17 +61,16 @@ def extract_data(text_or_path: str, query: str, *args) -> str:
         return "Nothing to analyze."
 
     engine = AIEngine()
-    prompt = f"From the following content, extract the specific information requested: '{query}'\n\nContent:\n{content}"
+    prompt = f"From the following content, extract: '{query}'\n\nContent:\n{content}"
     
     try:
         answer = engine.generate(
             prompt,
-            system="You are an expert data extractor. Provide only the requested information.",
+            system="Provide only the extracted information.",
             temperature=0.1
         )
         return f"Extracted '{query}': {answer}"
     except Exception as exc:
-        log.error("Extraction failed: %s", exc)
         return f"Failed to extract info: {exc}"
 
 
@@ -100,58 +81,82 @@ def summarize_active_window(*args, **kwargs) -> str:
     
     log.info("Summarizing active window")
     
-    # 1. Get window content
-    content = analyze_active_window()
-    if content.startswith("Error") or "no readable text" in content:
-        return content
+    # 1. Get window content/title
+    raw_window_data = analyze_active_window()
+    if raw_window_data.startswith("Error"):
+        return raw_window_data
 
-    # 2. Summarize via AI
+    content = raw_window_data
+    file_path_found = None
+    
+    # 2. Extract Path or Title-based filename
+    # We look for a path or a title line like "Window Title: MyFile.pdf"
+    lines = content.splitlines()
+    window_title = ""
+    for line in lines:
+        if line.startswith("Window Title:"):
+            window_title = line.replace("Window Title:", "").strip()
+        if "URL/Path:" in line:
+            raw_path = line.split("URL/Path:", 1)[1].strip()
+            # Clean up URLs (file:///C:/...)
+            if raw_path.startswith("file:///"):
+                raw_path = raw_path[8:].replace("/", "\\").replace("%20", " ")
+            file_path_found = raw_path
+            break
+
+    # 3. PROACTIVE DEEP SCAN: If no direct path, use the title to FIND the file
+    if not file_path_found and window_title:
+        # Extract filename (e.g. MyPaper.pdf) from possible browser titles (Privacy Assistant (5).pdf - Edge)
+        match = re.search(r"([a-zA-Z0-9_\-\s%()]+\.(pdf|docx|txt|md|doc))", window_title, re.IGNORECASE)
+        if match:
+             fname = match.group(1).strip()
+             log.info("System-wide search for potential file: %s", fname)
+             # Search in typical folders (downloads, documents, home)
+             results = search_files(fname)
+             if "Found" in results:
+                 # Extract the first matching path
+                 paths = results.splitlines()[2:] # Skip "Found X files" header
+                 if paths:
+                     file_path_found = paths[0].strip()
+
+    # 4. READ AND SUMMARIZE FILE
+    if file_path_found:
+        p = Path(file_path_found)
+        if p.exists() and p.is_file():
+            log.info("Deep scanning file for summary: %s", file_path_found)
+            text = read_file(str(p))
+            if not text.startswith("Error"):
+                content = f"FULL FILE CONTENT ({p.name}):\n\n{text}"
+
+    # 5. Summarize via AI
     engine = AIEngine()
     prompt = (
-        "You are an expert at analyzing computer screens. Based on the following "
-        "list of UI elements (names and values) from the active window, provide a "
-        "one or two sentence summary of what the user is doing or looking at.\n\n"
-        f"UI Content:\n{content}"
+        "You are an expert at analyzing documents. Based on the following Window/File Content, "
+        "provide a detailed summary. If you are provided with FULL FILE CONTENT, summarize that "
+        "thoroughly. \n\n"
+        f"Content:\n{content}"
     )
     
     try:
         summary = engine.generate(
             prompt,
-            system="You are a helpful desktop assistant. Be concise and accurate.",
+            system="You are a helpful assistant. Provide an accurate and comprehensive summary.",
             temperature=0.3
         )
-        return f"Summary of the active window:\n\n{summary}"
+        return f"Summary of focused document:\n\n{summary}"
     except Exception as exc:
-        log.error("Window summarization failed: %s", exc)
-        return f"Failed to summarize window: {exc}"
+        return f"Failed to summarize: {exc}"
 
 def summarize_project(*args) -> str:
     """Summarize the current project structure and files.
     """
     from infini_think.tools.file_tools import list_directory
-    
-    log.info("Summarizing project structure")
-    
-    # 1. Get project listing
+    log.info("Summarizing project")
     listing = list_directory(".")
-    
-    # 2. Summarize via AI
     engine = AIEngine()
-    prompt = (
-        "You are an expert software architect. Based on the following file and "
-        "directory listing of the current project, provide a high-level summary "
-        "of what this project is and how it is structured (e.g. core logic, "
-        "GUI, tools).\n\n"
-        f"Project Listing:\n{listing}"
-    )
-    
+    prompt = f"Summarize this project structure:\n\n{listing}"
     try:
-        summary = engine.generate(
-            prompt,
-            system="You are a helpful software engineering assistant.",
-            temperature=0.3
-        )
+        summary = engine.generate(prompt, temperature=0.3)
         return f"Project Summary:\n\n{summary}"
     except Exception as exc:
-        log.error("Project summarization failed: %s", exc)
         return f"Failed to summarize project: {exc}"
