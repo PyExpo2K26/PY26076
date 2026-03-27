@@ -133,6 +133,7 @@ class Executor:
             summarize_content,
             extract_data,
             summarize_active_window,
+            summarize_project,
         )
 
         self.register("open_app", open_app)
@@ -173,6 +174,7 @@ class Executor:
         self.register("summarize_content", summarize_content)
         self.register("extract_data", extract_data)
         self.register("summarize_active_window", summarize_active_window)
+        self.register("summarize_project", summarize_project)
         
         # Built-in lightweight conversational handler
         self.register("talk", lambda msg: msg)

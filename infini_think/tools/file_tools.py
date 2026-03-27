@@ -75,6 +75,15 @@ def _open_path_in_explorer(path: Path) -> None:
 
 def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
     """Attempt to resolve a path, falling back to a recursive search in common folders."""
+    # 0. Strip file:/// prefix and handle common URL encoding
+    if path_str.startswith("file:///"):
+        path_str = path_str[8:]
+    elif path_str.startswith("file://"):
+        path_str = path_str[7:]
+    
+    # Simple URL decoding check (just for spaces for now)
+    path_str = path_str.replace("%20", " ")
+
     shortcuts: dict[str, Path] = {
         "downloads": Path.home() / "Downloads",
         "desktop":   Path.home() / "Desktop",

@@ -319,10 +319,9 @@ class ChatWidget(QWidget):
     def _add_quick_actions(self) -> None:
         """Add interactive recommendation chips."""
         actions = [
-            ("📝 Summarize", "Summarize the current project structure"),
-            ("🔧 Fix Errors", "Check for and fix common linting issues"),
-            ("📁 List Files", "List the top-level files in this project"),
-            ("⚙️ System", "Check system resource usage"),
+            ("📝 Summarize", "summarize project"),
+            ("📁 List Files", "list files in this directory"),
+            ("⚙️ System", "get system info"),
         ]
         for label, cmd in actions:
             btn = QPushButton(label)

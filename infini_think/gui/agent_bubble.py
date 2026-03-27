@@ -149,6 +149,16 @@ class AgentBubble(QWidget):
         urls = event.mimeData().urls()
         if urls:
             file_path = urls[0].toLocalFile()
+            if not file_path:
+                file_path = urls[0].toString()
+            
+            # Final cleanup to ensure no file:/// prefixes
+            if "file:///" in file_path:
+                file_path = file_path.replace("file:///", "")
+            
+            import urllib.parse
+            file_path = urllib.parse.unquote(file_path)
+            
             self.file_dropped.emit(file_path)
             # Use os.path.basename to avoid backslashes in f-string expressions
             fname = os.path.basename(file_path)

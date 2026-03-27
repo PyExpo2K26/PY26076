@@ -40,6 +40,7 @@ Tools:
 - web_navigate(u), web_extract_text(), web_fill_and_submit(u, e, t)
 - get_active_window_info(), analyze_active_window(), summarize_active_window()
 - run_terminal_command(c), shutdown_pc(), get_system_info()
+- summarize_project()
 - talk(m) (for chat), unknown() (fallback)
 
 Rules:
@@ -54,6 +55,7 @@ Examples:
 - what's on my screen? -> {"tool":"summarize_active_window","args":[]}
 - list files in downloads -> {"tool":"list_directory","args":["downloads"]}
 - hi -> {"tool":"talk","args":["Hello! I am ready to assist with any task on your device."]}
+- summarize project -> {"tool":"summarize_project","args":[]}
 """
 
 
