@@ -106,6 +106,9 @@ class Executor:
             write_file,
             delete_file,
             rename_item,
+            list_directory,
+            copy_item,
+            move_item,
         )
         from infini_think.tools.system_tools import (
             run_terminal_command,
@@ -113,6 +116,8 @@ class Executor:
             take_screenshot,
             shutdown_pc,
             get_system_info,
+            get_process_list,
+            kill_process,
         )
         from infini_think.tools.window_tools import (
             get_active_window_info,
@@ -127,6 +132,7 @@ class Executor:
         from infini_think.tools.intelligence_tools import (
             summarize_content,
             extract_data,
+            summarize_active_window,
         )
 
         self.register("open_app", open_app)
@@ -144,11 +150,16 @@ class Executor:
         self.register("write_file", write_file)
         self.register("delete_file", delete_file)
         self.register("rename_item", rename_item)
+        self.register("list_directory", list_directory)
+        self.register("copy_item", copy_item)
+        self.register("move_item", move_item)
         self.register("run_terminal_command", run_terminal_command)
         self.register("execute_powershell", execute_powershell)
         self.register("take_screenshot", take_screenshot)
         self.register("shutdown_pc", shutdown_pc)
         self.register("get_system_info", get_system_info)
+        self.register("get_process_list", get_process_list)
+        self.register("kill_process", kill_process)
         self.register("get_active_window_info", get_active_window_info)
         self.register("analyze_active_window", analyze_active_window)
         self.register("get_taskbar_info", get_taskbar_info)
@@ -161,6 +172,7 @@ class Executor:
         # Intelligence tools
         self.register("summarize_content", summarize_content)
         self.register("extract_data", extract_data)
+        self.register("summarize_active_window", summarize_active_window)
         
         # Built-in lightweight conversational handler
         self.register("talk", lambda msg: msg)

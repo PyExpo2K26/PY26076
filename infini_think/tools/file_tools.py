@@ -574,3 +574,130 @@ def search_files(query: str, root: str | None = None, *args) -> str:
     result_str = "\n".join(matches)
     log.info("search_files('%s'): %d results", query, len(matches))
     return f"Found {len(matches)} file(s):\n{result_str}"
+
+
+def list_directory(path: str = "home", *args) -> str:
+    """List the contents of a directory.
+
+    Args:
+        path: Directory path or shorthand (e.g. "downloads", "desktop"). 
+              Defaults to the user's home directory.
+        *args: Extra arguments (ignored).
+
+    Returns:
+        A list of files and folders in the directory.
+    """
+    resolved = _smart_find(path, find_dir=True)
+    if not resolved:
+        # Try direct resolution if smart find fails (for non-standard paths)
+        resolved = Path(path).expanduser()
+        if not resolved.exists():
+            return f"Directory not found: {path}"
+
+    if not resolved.is_dir():
+        return f"Path is not a directory: {resolved}"
+
+    try:
+        items = []
+        for item in resolved.iterdir():
+            prefix = "📁 " if item.is_dir() else "📄 "
+            items.append(f"{prefix}{item.name}")
+        
+        if not items:
+            return f"The directory '{resolved}' is empty."
+            
+        # Sort folders first, then files
+        items.sort()
+        content = "\n".join(items)
+        
+        # Truncate if too many items
+        if len(items) > 100:
+            content = "\n".join(items[:100]) + f"\n... (and {len(items)-100} more)"
+            
+        log.info("Listed directory: %s", resolved)
+        return f"Contents of {resolved}:\n\n{content}"
+    except Exception as exc:
+        return f"Failed to list directory: {exc}"
+
+
+def copy_item(source: str, destination: str, *args) -> str:
+    """Copy a file or directory to a new location.
+
+    Args:
+        source: Source path or shorthand.
+        destination: Destination path or shorthand.
+        *args: Extra arguments (ignored).
+
+    Returns:
+        Human-readable status string.
+    """
+    src = _smart_find(source, find_dir=True)
+    if not src:
+        src = Path(source).expanduser()
+        if not src.exists():
+            return f"Source not found: {source}"
+
+    # For destination, we resolve it as a path
+    dst = Path(destination).expanduser()
+    if not dst.is_absolute():
+        # Heuristic: if it's not absolute, try to resolve it relative to home or as a shortcut
+        resolved_dst = _smart_find(destination, find_dir=True)
+        if resolved_dst:
+            dst = resolved_dst
+        else:
+            dst = Path.home() / destination
+
+    try:
+        # If destination is a directory, copy INTO it
+        if dst.is_dir():
+            dst = dst / src.name
+
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+            
+        log.info("Copied %s to %s", src, dst)
+        return f"Successfully copied '{src.name}' to '{dst}'"
+    except Exception as exc:
+        msg = f"Failed to copy '{source}': {exc}"
+        log.error(msg)
+        return msg
+
+
+def move_item(source: str, destination: str, *args) -> str:
+    """Move (or rename) a file or directory to a new location.
+
+    Args:
+        source: Source path or shorthand.
+        destination: Destination path or shorthand.
+        *args: Extra arguments (ignored).
+
+    Returns:
+        Human-readable status string.
+    """
+    src = _smart_find(source, find_dir=True)
+    if not src:
+        src = Path(source).expanduser()
+        if not src.exists():
+            return f"Source not found: {source}"
+
+    dst = Path(destination).expanduser()
+    if not dst.is_absolute():
+        resolved_dst = _smart_find(destination, find_dir=True)
+        if resolved_dst:
+            dst = resolved_dst
+        else:
+            dst = Path.home() / destination
+
+    try:
+        if dst.is_dir():
+            dst = dst / src.name
+
+        shutil.move(str(src), str(dst))
+        log.info("Moved %s to %s", src, dst)
+        return f"Successfully moved '{src.name}' to '{dst}'"
+    except Exception as exc:
+        msg = f"Failed to move '{source}': {exc}"
+        log.error(msg)
+        return msg

@@ -91,3 +91,36 @@ def extract_data(text_or_path: str, query: str, *args) -> str:
     except Exception as exc:
         log.error("Extraction failed: %s", exc)
         return f"Failed to extract info: {exc}"
+
+
+def summarize_active_window(*args, **kwargs) -> str:
+    """Read the content of the currently focused window and provide a summary.
+    """
+    from infini_think.tools.window_tools import analyze_active_window
+    
+    log.info("Summarizing active window")
+    
+    # 1. Get window content
+    content = analyze_active_window()
+    if content.startswith("Error") or "no readable text" in content:
+        return content
+
+    # 2. Summarize via AI
+    engine = AIEngine()
+    prompt = (
+        "You are an expert at analyzing computer screens. Based on the following "
+        "list of UI elements (names and values) from the active window, provide a "
+        "one or two sentence summary of what the user is doing or looking at.\n\n"
+        f"UI Content:\n{content}"
+    )
+    
+    try:
+        summary = engine.generate(
+            prompt,
+            system="You are a helpful desktop assistant. Be concise and accurate.",
+            temperature=0.3
+        )
+        return f"Summary of the active window:\n\n{summary}"
+    except Exception as exc:
+        log.error("Window summarization failed: %s", exc)
+        return f"Failed to summarize window: {exc}"

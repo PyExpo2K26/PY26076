@@ -256,3 +256,67 @@ def get_system_info() -> str:
 
     except Exception as exc:  # noqa: BLE001
         return f"Could not retrieve system info: {exc}"
+
+
+def get_process_list(*args, **kwargs) -> str:
+    """List all currently running processes with their IDs and memory usage.
+    """
+    if platform.system() != "Windows":
+        return "Process listing is currently only supported on Windows."
+
+    log.info("Retrieving process list")
+    
+    # PowerShell command to get process details in a clean format
+    ps_script = "(Get-Process | Select-Object -Property Id, ProcessName, @{Name='MemMB';Expression={[math]::Round($_.WorkingSet64 / 1MB, 2)}} | Sort-Object -Property MemMB -Descending | Select-Object -First 30 | Format-Table -HideTableHeaders | Out-String).Trim()"
+    
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        processes = result.stdout.strip()
+        if not processes:
+            return "No processes found."
+            
+        header = f"{'PID':<8} {'Name':<20} {'Memory (MB)':<12}\n" + "-"*40
+        return f"Top 30 Running Processes (by Memory):\n\n{header}\n{processes}"
+    except Exception as exc:
+        log.error("Process list failed: %s", exc)
+        return f"Error retrieving process list: {exc}"
+
+
+def kill_process(target: str | int, *args, **kwargs) -> str:
+    """Terminate a running process by its name or ID.
+
+    Args:
+        target: The name of the process (e.g. 'notepad') or its PID.
+    """
+    system = platform.system()
+    log.info("Killing process: %s", target)
+    
+    try:
+        if system == "Windows":
+            if str(target).isdigit():
+                cmd = ["taskkill", "/PID", str(target), "/F"]
+            else:
+                # Add .exe if not present for taskkill
+                name = str(target)
+                if not name.endswith(".exe") and "." not in name:
+                    name += ".exe"
+                cmd = ["taskkill", "/IM", name, "/F"]
+                
+            subprocess.run(cmd, check=True, capture_output=True)
+            return f"Successfully terminated process: {target}"
+            
+        else:
+            cmd = ["pkill", "-f", str(target)]
+            subprocess.run(cmd, check=True, capture_output=True)
+            return f"Successfully terminated process: {target}"
+            
+    except subprocess.CalledProcessError:
+        return f"Could not find or terminate process: {target}. It may not be running or requires elevated privileges."
+    except Exception as exc:
+        log.error("Kill process failed: %s", exc)
+        return f"Error killing process: {exc}"
