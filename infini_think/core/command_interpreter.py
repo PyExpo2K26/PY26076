@@ -37,6 +37,7 @@ Tools:
 - web_navigate(u), web_extract_text(), web_fill_and_submit(u, e, t)
 - search_files(q), create_folder(n), organize_downloads()
 - run_terminal_command(c), shutdown_pc(), get_system_info()
+- get_active_window_info(), analyze_active_window(), get_taskbar_info()
 - talk(m) (for chat/questions), unknown() (fallback)
 
 Rules:

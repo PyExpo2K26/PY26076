@@ -114,7 +114,11 @@ class Executor:
             shutdown_pc,
             get_system_info,
         )
-        from infini_think.tools.window_tools import get_active_window_info
+        from infini_think.tools.window_tools import (
+            get_active_window_info,
+            analyze_active_window,
+            get_taskbar_info,
+        )
         from infini_think.tools.web_tools import (
             web_navigate,
             web_extract_text,
@@ -146,6 +150,8 @@ class Executor:
         self.register("shutdown_pc", shutdown_pc)
         self.register("get_system_info", get_system_info)
         self.register("get_active_window_info", get_active_window_info)
+        self.register("analyze_active_window", analyze_active_window)
+        self.register("get_taskbar_info", get_taskbar_info)
         
         # Web tools
         self.register("web_navigate", web_navigate)

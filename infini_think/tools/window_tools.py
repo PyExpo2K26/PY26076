@@ -80,3 +80,98 @@ def get_active_window_info(*args, **kwargs) -> str:
     except Exception as exc:
         log.error("Failed to get window info: %s", exc)
         return f"Error retrieving window info: {exc}"
+
+
+def analyze_active_window(*args, **kwargs) -> str:
+    """Read and summarize the text content of the currently focused window.
+    
+    This tool uses UI Automation to extract names and values of visible 
+    elements (buttons, labels, inputs) in the active window.
+    """
+    if platform.system() != "Windows":
+        return "Window content analysis is currently only supported on Windows."
+
+    log.info("Analyzing active window content via UI Automation")
+    
+    ps_script = """
+    Add-Type -AssemblyName UIAutomationClient
+    Add-Type -AssemblyName UIAutomationTypes
+    
+    $hWnd = (Add-Type -MemberDefinition '
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+    ' -Name 'User32Win' -PassThru)::GetForegroundWindow()
+    
+    try {
+        $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hWnd)
+        $condition = [System.Windows.Automation.Condition]::TrueCondition
+        $elements = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        
+        $content = @()
+        foreach ($el in $elements) {
+            $name = $el.Current.Name
+            $value = ""
+            try {
+                $pattern = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+                $value = $pattern.Current.Value
+            } catch {}
+            
+            if ($name -or $value) {
+                $item = ""
+                if ($name) { $item += $name }
+                if ($value) { $item += " ($value)" }
+                $content += $item
+            }
+        }
+        $content | Select-Object -Unique | Out-String
+    } catch {
+        "Failed to access window elements: $_"
+    }
+    """
+    
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        content = result.stdout.strip()
+        if not content:
+            return "The active window appears to have no readable text elements."
+        
+        # Truncate to avoid overloading context
+        if len(content) > 3000:
+            content = content[:3000] + "... (content truncated)"
+            
+        return f"Content of the active window:\n\n{content}"
+    except Exception as exc:
+        log.error("Analysis failed: %s", exc)
+        return f"Error analyzing window: {exc}"
+
+
+def get_taskbar_info(*args, **kwargs) -> str:
+    """List all currently open applications that are visible on the taskbar.
+    """
+    if platform.system() != "Windows":
+        return "Taskbar info is currently only supported on Windows."
+
+    log.info("Retrieving running applications (taskbar info)")
+    
+    ps_script = "(Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -Property ProcessName, MainWindowTitle | Sort-Object -Property ProcessName | Format-Table -HideTableHeaders | Out-String).Trim()"
+    
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        apps = result.stdout.strip()
+        if not apps:
+            return "No applications with visible windows were found."
+            
+        return f"Running Applications (Taskbar):\n\n{apps}"
+    except Exception as exc:
+        log.error("Taskbar info failed: %s", exc)
+        return f"Error retrieving taskbar info: {exc}"

@@ -52,7 +52,7 @@ class Settings:
     tts_volume: float = 0.9       # 0.0 – 1.0
     stt_phrase_timeout: float = 5.0   # Seconds of silence before phrase ends
     stt_energy_threshold: int = 300   # Mic sensitivity
-    stt_wake_word: str = "hey chitti"  # New: wake word for voice triggers
+    stt_wake_word: str = "hey"      # New: wake word for voice triggers
     stt_continuous_listening: bool = True  # New: whether to listen for wake word on startup
 
     # --- GUI -----------------------------------------------------------------
