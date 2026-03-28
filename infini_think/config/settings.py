@@ -59,6 +59,7 @@ class Settings:
     )
     log_to_file: bool = True
     log_dir: Path = field(default_factory=lambda: _USER_DATA_DIR / "logs")
+    setup_done_file: Path = field(default_factory=lambda: _USER_DATA_DIR / "setup_done.flag")
 
     # --- Paths ---
     downloads_dir: Path = field(default_factory=lambda: Path.home() / "Downloads")
@@ -73,6 +74,14 @@ class Settings:
         """Create user-facing directories."""
         self.user_data_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+    def is_setup_complete(self) -> bool:
+        """Return True if the setup flag file exists."""
+        return self.setup_done_file.exists()
+
+    def mark_setup_complete(self) -> None:
+        """Create the setup flag file to mark the app as ready."""
+        self.setup_done_file.touch()
 
 
 settings = Settings()

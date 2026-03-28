@@ -107,8 +107,9 @@ def _launch_gui() -> None:
     _apply_dark_palette(app)
 
     # Path to the agent icon
-    project_root = Path(__file__).parent.parent.parent
-    icon_path = str(project_root / "assets" / "infini_think_icon.png")
+    import infini_think
+    package_root = Path(infini_think.__file__).parent
+    icon_path = str(package_root / "assets" / "infini_think_icon.png")
 
     sidebar = MainWindow()
     bubble = AgentBubble(icon_path)
@@ -129,6 +130,36 @@ def _launch_gui() -> None:
     
     log.info("Agent Bubble launched")
     sys.exit(app.exec())
+
+
+def _launch_setup() -> None:
+    """Start the one-click setup wizard."""
+    try:
+        from PySide6.QtWidgets import QApplication
+        from infini_think.gui.setup_wizard import SetupWizard
+    except ImportError:
+        print("❌ PySide6 not found. Cannot launch setup wizard.", file=sys.stderr)
+        sys.exit(1)
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    app.setApplicationName("InfiniThink Setup")
+    
+    wizard = SetupWizard()
+    
+    # When setup is finished, we want to launch the actual GUI.
+    # We can do this by re-calling _launch_gui after the wizard exec() returns
+    # if the wizard marked it as finished.
+    wizard.show()
+    
+    # We use a nested event loop or just wait for close
+    app.exec()
+    
+    # After wizard closes, check if we should proceed to main GUI
+    if settings.is_setup_complete():
+        _launch_gui()
+    else:
+        log.info("Setup not completed. Exiting.")
+        sys.exit(0)
 
 
 def _apply_dark_palette(app) -> None:
@@ -188,8 +219,12 @@ def main() -> None:
         _check_ollama(warn_only=True)
         _launch_voice()
     else:
-        # GUI is the default — Ollama check happens inside MainWindow
-        _launch_gui()
+        # GUI is the default — check for first-run setup
+        if not settings.is_setup_complete() and not args.cli and not args.voice:
+            log.info("First-run detected. Launching setup wizard.")
+            _launch_setup()
+        else:
+            _launch_gui()
 
 
 if __name__ == "__main__":

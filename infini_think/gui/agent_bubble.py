@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QPoint, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QTimer
 from PySide6.QtGui import QPixmap, QMouseEvent, QEnterEvent, QColor, QImage
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect, QMenu
 
 from infini_think.utils.logger import get_logger
 
@@ -112,6 +112,19 @@ class AgentBubble(QWidget):
             self._dragging = False
             event.accept()
 
+    def contextMenuEvent(self, event) -> None:
+        """Show a right-click context menu to quit the app."""
+        from PySide6.QtWidgets import QMenu, QApplication
+        menu = QMenu(self)
+        menu.setStyleSheet(
+             "QMenu { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; padding: 4px; }"
+             "QMenu::item:selected { background: #1f6feb; border-radius: 2px; }"
+        )
+        quit_action = menu.addAction("Quit InfiniThink")
+        action = menu.exec(event.globalPos())
+        if action == quit_action:
+            QApplication.instance().quit()
+
     def enterEvent(self, event: QEnterEvent) -> None:
         # Hover interaction
         self._glow.setBlurRadius(45)
@@ -206,7 +219,6 @@ class AgentBubble(QWidget):
             "QLabel { "
             "background: rgba(22, 27, 34, 230); "
             "color: #58a6ff; "
-            "border: 1px solid rgba(88, 166, 255, 0.4); "
             "border-radius: 8px; "
             "padding: 4px 10px; "
             "font-family: 'Segoe UI Variable Text'; "

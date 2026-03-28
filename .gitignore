@@ -18,7 +18,9 @@ dist/
 build/
 *.egg-info/
 *.egg
-MANIFEST
+/MANIFEST
+/artifacts/
+/deploy/
 
 # PyInstaller
 *.manifest
@@ -54,6 +56,8 @@ logs/
 
 # User data
 .infini_think/
+*.flag
+/data/
 
 # Secrets / keys
 .env.local

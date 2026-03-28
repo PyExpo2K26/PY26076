@@ -11,6 +11,7 @@ license = "MIT"
 authors = [{ name = "InfiniThink Team" }]
 requires-python = ">=3.10"
 keywords = ["ai", "agent", "desktop", "ollama", "llm", "voice", "automation"]
+dependencies = [
     "PySide6>=6.6.0",
     "SpeechRecognition>=3.10.0",
     "pyttsx3>=2.90",
@@ -37,9 +38,15 @@ Homepage = "https://github.com/your-org/infini-think"
 Repository = "https://github.com/your-org/infini-think"
 Issues = "https://github.com/your-org/infini-think/issues"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["infini_think*"]
+
+[tool.setuptools.package-data]
+infini_think = ["assets/*.png"]
 
 
 

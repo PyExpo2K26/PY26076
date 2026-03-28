@@ -1,0 +1,3 @@
+include README.md
+include LICENSE
+recursive-include infini_think/assets *.png
