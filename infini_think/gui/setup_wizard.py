@@ -14,6 +14,9 @@ import sys
 import subprocess
 import threading
 import time
+import urllib.request
+import os
+import tempfile
 from pathlib import Path
 from typing import Callable
 
@@ -42,6 +45,33 @@ log = get_logger(__name__)
 # ---------------------------------------------------------------------------
 # Background Install Worker
 # ---------------------------------------------------------------------------
+
+class DownloadWorker(QObject):
+    """Downloads a file in the background and emits progress."""
+    progress = Signal(int)
+    finished = Signal(bool, str) # success, result_or_error
+
+    def __init__(self, url: str, dest_path: str) -> None:
+        super().__init__()
+        self.url = url
+        self.dest_path = dest_path
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            log.info("Downloading %s to %s", self.url, self.dest_path)
+            
+            def report_hook(count, block_size, total_size):
+                if total_size > 0:
+                    percent = int(count * block_size * 100 / total_size)
+                    self.progress.emit(min(percent, 100))
+            
+            urllib.request.urlretrieve(self.url, self.dest_path, reporthook=report_hook)
+            self.finished.emit(True, self.dest_path)
+        except Exception as exc:
+            log.exception("Download failed")
+            self.finished.emit(False, str(exc))
+
 
 class RunCommandWorker(QObject):
     """Executes a shell command and reports status/output."""
@@ -272,12 +302,46 @@ class SetupWizard(QMainWindow):
             self._step_2_model()
             return
             
-        self._append_log("Ollama not found. Opening download page...")
-        # Automating a system-level installer is high risk; better to direct or download
-        import webbrowser
-        webbrowser.open("https://ollama.com/download")
-        self._append_log("Please install Ollama and click 'Check Again'.")
-        self._setup_btn.setEnabled(True)
+        self._append_log("Ollama not found. Downloading the official Windows engine...")
+        self.temp_installer = os.path.join(tempfile.gettempdir(), "OllamaSetup.exe")
+        
+        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setValue(0)
+        self._progress_bar.show()
+        
+        thread = QThread()
+        # Direct URL to the primary Windows installer
+        worker = DownloadWorker("https://ollama.com/download/OllamaSetup.exe", self.temp_installer)
+        worker.moveToThread(thread)
+        
+        thread.started.connect(worker.run)
+        worker.progress.connect(self._progress_bar.setValue)
+        worker.finished.connect(self._on_download_finished)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        
+        self._threads.append(thread)
+        thread.start()
+
+    def _on_download_finished(self, success: bool, result: str) -> None:
+        self._progress_bar.setRange(0, 0) # Back to indeterminate
+        if success:
+            self._append_log("✅ Download complete. Installing Ollama silently...")
+            # We run the installer silently in the background
+            self._run_command([self.temp_installer, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], self._on_install_finished)
+        else:
+            self._append_log(f"❌ Failed to download Ollama: {result}")
+            self._setup_btn.setEnabled(True)
+
+    def _on_install_finished(self, success: bool, msg: str) -> None:
+        if success:
+            self._append_log("✅ Ollama installed correctly.")
+            # Add a short delay so the Ollama service has time to start up before checking models
+            QTimer.singleShot(3000, self._step_2_model)
+        else:
+            self._append_log(f"❌ Failed to install Ollama: {msg}")
+            self._setup_btn.setEnabled(True)
 
     def _step_2_model(self) -> None:
         self._append_log(f"Pulling model: {settings.ollama_model} (this may take several minutes)...")
