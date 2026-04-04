@@ -42,7 +42,7 @@ Issues = "https://github.com/your-org/infini-think/issues"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["infini_think*"]
 
 [tool.setuptools.package-data]
