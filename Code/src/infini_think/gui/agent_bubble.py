@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QPoint, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QTimer
 from PySide6.QtGui import QPixmap, QMouseEvent, QEnterEvent, QColor, QImage
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect, QMenu
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect, QMenu, QPushButton, QApplication
 
 from infini_think.utils.logger import get_logger
 
@@ -79,6 +79,17 @@ class AgentBubble(QWidget):
         self._pulse_anim.setEndValue(45)
         self._pulse_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
         self._pulse_anim.setLoopCount(-1)
+
+        # Small Exit Button
+        self._exit_btn = QPushButton("✕", self)
+        self._exit_btn.setFixedSize(16, 16)
+        self._exit_btn.move(self.width() - 20, 4)
+        self._exit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._exit_btn.setStyleSheet(
+            "QPushButton { background: transparent; color: #8b949e; border: none; font-weight: bold; }"
+            "QPushButton:hover { color: #f85149; }"
+        )
+        self._exit_btn.clicked.connect(lambda: QApplication.instance().quit())
 
         self._reposition_to_default()
 
