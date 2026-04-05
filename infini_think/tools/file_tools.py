@@ -73,7 +73,44 @@ def _open_path_in_explorer(path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
+def _confirm_deletion_gui(path: Path) -> bool:
+    """Cross-thread helper to prompt user before destructive deletion."""
+    import sys
+    if "infini_think.app.launcher" not in sys.modules:
+        return True 
+        
+    try:
+        from PySide6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtCore import QObject, Slot, QMetaObject, Qt, Q_RETURN_ARG, Q_ARG
+        
+        app = QApplication.instance()
+        if not app:
+            ans = input(f"\n[WARNING] Are you sure you want to delete {path}? (y/N): ")
+            return ans.lower() == 'y'
+            
+        class Confirmer(QObject):
+            @Slot(str, result=bool)
+            def ask(self, p: str) -> bool:
+                mb = QMessageBox()
+                mb.setAttribute(Qt.WidgetAttribute.WA_QuitOnClose, False)
+                mb.setIcon(QMessageBox.Icon.Warning)
+                mb.setWindowTitle("Confirm Deletion")
+                mb.setText(f"Are you sure you want to permanently delete:\n\n{p}")
+                mb.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                mb.setDefaultButton(QMessageBox.StandardButton.No)
+                mb.setWindowFlags(mb.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+                return mb.exec() == QMessageBox.StandardButton.Yes
+                
+        c = Confirmer()
+        c.moveToThread(app.thread())
+        
+        return QMetaObject.invokeMethod(
+            c, "ask", Qt.ConnectionType.BlockingQueuedConnection, Q_RETURN_ARG(bool), Q_ARG(str, str(path))
+        )
+    except ImportError:
+        return True
+
+def _smart_find(path_str: str, find_dir: bool = False, strict: bool = False) -> Path | None:
     """Attempt to resolve a path, falling back to a recursive search in common folders."""
     # 0. Strip file:/// prefix and handle common URL encoding
     if path_str.startswith("file:///"):
@@ -147,12 +184,21 @@ def _smart_find(path_str: str, find_dir: bool = False) -> Path | None:
                 if depth >= 1:
                     dirs[:] = []
                 
+                # Check folders if permitted
+                if find_dir:
+                    for d in dirs:
+                        if strict:
+                            if query == d.lower(): return Path(root) / d
+                        else:
+                            if query == d.lower() or query in d.lower(): return Path(root) / d
+                                
                 # Check files in current dir
-                for f in files:
-                    if query == f.lower() or query in f.lower():
-                        res = Path(root) / f
-                        log.info("Deep search matched file: %s", res)
-                        return res
+                if not find_dir or True:
+                    for f in files:
+                        if strict:
+                            if query == f.lower(): return Path(root) / f
+                        else:
+                            if query == f.lower() or query in f.lower(): return Path(root) / f
         except Exception as exc:
             log.debug("Search in %s failed: %s", search_dir, exc)
 
@@ -493,18 +539,12 @@ def write_file(path: str, content: str, *args) -> str:
 
 
 def delete_file(path: str, *args) -> str:
-    """Delete a file or folder. Use with caution.
+    """Delete a file or folder. Use with caution."""
+    resolved = _smart_find(path, find_dir=True, strict=True) 
+    if not resolved: return f"Item not found to delete (strict match required): {path}"
 
-    Args:
-        path: Path or shorthand to the item to delete.
-        *args: Extra arguments (ignored).
-
-    Returns:
-        Human-readable status string.
-    """
-    resolved = _smart_find(path, find_dir=True) # Check both files and dirs
-    if not resolved:
-        return f"Item not found to delete: {path}"
+    if not _confirm_deletion_gui(resolved):
+         return f"Deletion of '{resolved.name}' canceled by user."
 
     try:
         if resolved.is_dir():
@@ -628,21 +668,11 @@ def list_directory(path: str = "home", *args) -> str:
 
 
 def copy_item(source: str, destination: str, *args) -> str:
-    """Copy a file or directory to a new location.
-
-    Args:
-        source: Source path or shorthand.
-        destination: Destination path or shorthand.
-        *args: Extra arguments (ignored).
-
-    Returns:
-        Human-readable status string.
-    """
-    src = _smart_find(source, find_dir=True)
+    """Copy a file or directory to a new location."""
+    src = _smart_find(source, find_dir=True, strict=True)
     if not src:
         src = Path(source).expanduser()
-        if not src.exists():
-            return f"Source not found: {source}"
+        if not src.exists(): return f"Source not found: {source}"
 
     # For destination, we resolve it as a path
     dst = Path(destination).expanduser()
@@ -673,21 +703,11 @@ def copy_item(source: str, destination: str, *args) -> str:
 
 
 def move_item(source: str, destination: str, *args) -> str:
-    """Move (or rename) a file or directory to a new location.
-
-    Args:
-        source: Source path or shorthand.
-        destination: Destination path or shorthand.
-        *args: Extra arguments (ignored).
-
-    Returns:
-        Human-readable status string.
-    """
-    src = _smart_find(source, find_dir=True)
+    """Move (or rename) a file or directory to a new location."""
+    src = _smart_find(source, find_dir=True, strict=True)
     if not src:
         src = Path(source).expanduser()
-        if not src.exists():
-            return f"Source not found: {source}"
+        if not src.exists(): return f"Source not found: {source}"
 
     dst = Path(destination).expanduser()
     if not dst.is_absolute():

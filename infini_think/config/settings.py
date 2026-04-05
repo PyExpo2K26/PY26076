@@ -30,7 +30,7 @@ class Settings:
 
     # --- AI Engine (Ollama) ---
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3"
+    ollama_model: str = "llama3.2:1b"
     ollama_timeout: int = 300  # Increased for long document summaries
     ollama_stream: bool = False
 

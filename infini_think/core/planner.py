@@ -39,7 +39,8 @@ Tools:
 - open_app(n), close_app(n)
 - open_url(u, b='chrome'), open_folder(p), close_folder(p)
 - open_file(p), close_file(p), read_file(p)
-- write_file(p, c), delete_file(p), rename_item(p, n)
+- write_file(p, c), delete_file(p), delete_folder(p), rename_item(p, n)
+- copy_file(s, d), copy_folder(s, d), move_file(s, d), move_folder(s, d)
 - open_vscode(p?), web_navigate(u), web_extract_text()
 - web_fill_and_submit(u, e, t), search_files(q), create_folder(n)
 - organize_downloads(), run_terminal_command(c), shutdown_pc()
@@ -49,10 +50,12 @@ Rules:
 1. ONLY JSON array. No prose. No explanation.
 2. Logical order. Max {max_steps} steps.
 3. BE DIRECT: Execute immediately. Do not ask for confirmation.
+4. MEMORY: If a [Recent Chat History] is provided, use it to understand vague references in the Current Command!
 
 Examples:
-- research workspace -> [[{{ "tool":"open_app","args":["chrome"] }},{{ "tool":"open_folder","args":["research"] }}]]
-- ask gemini how to bake -> [[{{ "tool":"web_fill_and_submit","args":["gemini.google.com","prompt","how to bake"] }}]]
+- research workspace -> [{{ "tool":"open_app","args":["chrome"] }}, {{ "tool":"open_folder","args":["research"] }}]
+- copy pro to desktop -> [{{ "tool":"copy_folder","args":["pro", "desktop"] }}]
+- ask gemini how to bake -> [{{ "tool":"web_fill_and_submit","args":["gemini.google.com","prompt","how to bake"] }}]
 """.format(max_steps=settings.max_plan_steps)
 
 

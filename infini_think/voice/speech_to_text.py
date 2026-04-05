@@ -129,24 +129,26 @@ class SpeechToText:
         import speech_recognition as sr  # noqa: PLC0415
 
         recogniser = sr.Recognizer()
-        recogniser.energy_threshold = settings.stt_energy_threshold
-        recogniser.pause_threshold = 0.6  # Reduced from 1.2 for faster response
+        recogniser.energy_threshold = 300 # More sensitive baseline (default is often higher)
+        recogniser.pause_threshold = 0.8 # Don't cut off instantly if user inhales (was 0.6)
+        recogniser.phrase_threshold = 0.2 # Faster trigger on small sounds 
+        recogniser.non_speaking_duration = 0.5 # Keeps recording running through micro-pauses
         recogniser.dynamic_energy_threshold = True
         recogniser.dynamic_energy_adjustment_damping = 0.15
         recogniser.dynamic_energy_ratio = 1.5
 
         try:
             with sr.Microphone() as source:
-                log.info("Adjusting for ambient noise (0.5s) …")
-                recogniser.adjust_for_ambient_noise(source, duration=0.5)
+                log.info("Adjusting for ambient noise (1.0s) …")
+                recogniser.adjust_for_ambient_noise(source, duration=1.0) # Longer calibration for better noise floor
                 log.info("Listening for speech (Energy Threshold: %d) …", recogniser.energy_threshold)
 
                 while not self._stop_event.is_set():
                     try:
                         audio = recogniser.listen(
                             source,
-                            timeout=1.5, # Slightly snappier
-                            phrase_time_limit=10, # Allow for longer requests
+                            timeout=2.0, # Check exit flag every 2 seconds
+                            phrase_time_limit=15, # Allow users to say much longer, complex commands
                         )
                         log.debug("Audio captured, sending to recognizer …")
                     except sr.WaitTimeoutError:
@@ -183,11 +185,9 @@ class SpeechToText:
                                     self._on_result(command)
                                 else:
                                     # Just the wake word was heard.
-                                    # We could optionally beep or acknowledge.
-                                    log.info("Trigger word heard but no command followed.")
-                                    # We still notify the UI that the wake word was heard
-                                    # by sending an empty string or a special signal if needed.
-                                    # For now, let's just ignore empty commands to avoid noise.
+                                    log.info("Trigger word heard but no command followed. Waiting for next phrase...")
+                                    self.set_trigger_phrase(None) # Allow any text next
+                                    self._on_result("__WAKE__")
                             else:
                                 log.debug("Speech ignored (did not contain trigger phrase)")
                         else:

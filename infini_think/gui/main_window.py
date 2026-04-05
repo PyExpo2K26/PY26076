@@ -139,6 +139,7 @@ class MainWindow(QMainWindow):
         self._interpreter: CommandInterpreter | None = None
         self._planner: TaskPlanner | None = None
         self._executor: Executor | None = None
+        self._conversation_history: list[str] = []
 
         self._init_ai()
         self._init_voice()
@@ -380,10 +381,19 @@ class MainWindow(QMainWindow):
         """Called when the user sends a message — dispatches AI work to a thread."""
         log.info("User submitted: %r", text)
         self._chat.set_thinking(True)
+        
+        self._conversation_history.append(f"User: {text}")
+
+        # Build prompt with history for context
+        history_text = "\n".join(self._conversation_history[-5:-1]) # Exclude the current msg we just appended
+        if history_text:
+             prompt_text = f"[Recent Chat History]\n{history_text}\n[End History]\n\nCurrent Command: {text}"
+        else:
+             prompt_text = text
 
         # Create worker + thread
         thread = QThread()
-        worker = _AIWorker(text, self._planner, self._executor)
+        worker = _AIWorker(prompt_text, self._planner, self._executor)
         worker.moveToThread(thread)
         
         # Keep a reference to prevent garbage collection
@@ -419,14 +429,17 @@ class MainWindow(QMainWindow):
             if tool == "talk":
                 # Use a typing effect for natural conversation
                 self._stream_ai_message(output)
+                self._conversation_history.append(f"AI: {output}")
             elif success:
                 msg = f"✅  {output}"
                 log.info("Executed '%s' in %.3fs", tool, elapsed)
                 self._chat.add_ai_message(msg)
+                self._conversation_history.append(f"AI: (Action Succeeded) {output}")
             else:
                 msg = f"❌  {output}"
                 log.warning("Tool '%s' failed: %s", tool, output)
                 self._chat.add_ai_message(msg)
+                self._conversation_history.append(f"AI: (Action Failed) {output}")
 
             if self._tts and success:
                 self._tts.speak(output)
@@ -464,23 +477,25 @@ class MainWindow(QMainWindow):
     # Voice
     # ------------------------------------------------------------------
 
-            # If we are in continuous mode, re-enable the trigger instead of stopping
-            if settings.stt_continuous_listening:
-                self._stt.set_trigger_phrase(settings.stt_wake_word)
-                self._chat.add_system_message(f"👂 Continuous listening active (wake word: {settings.stt_wake_word})")
-            else:
-                self._stt.stop_listening()
-
     def _on_stt_result(self, text: str) -> None:
         """Called from the STT background thread — schedule GUI update safely."""
         self.stt_result_ready.emit(text)
 
     @Slot(str)
     def _handle_stt_result(self, text: str) -> None:
+        if text == "__WAKE__":
+            self._chat.set_thinking(True)
+            self.ai_status_update.emit("Listening...")
+            if self._tts:
+                self._tts.speak("Yes?") # Read back to user that we are listening
+            return
+
         self._chat.add_user_message(f"🎤 {text}")
         
-        # Only stop listening if we are NOT in continuous mode
-        if not settings.stt_continuous_listening:
+        # Restore trigger or stop listening
+        if settings.stt_continuous_listening:
+            self._stt.set_trigger_phrase(settings.stt_wake_word)
+        else:
             self._stt.stop_listening()
             
         self._on_message_submitted(text)
@@ -500,7 +515,6 @@ class MainWindow(QMainWindow):
     def _handle_stt_error(self, msg: str) -> None:
         """Called on the GUI thread when the STT worker hits a snag."""
         self._chat.add_system_message(f"⚠️ Voice error: {msg}")
-        self._chat.set_mic_active(False)
 
     # ------------------------------------------------------------------
     # About dialog

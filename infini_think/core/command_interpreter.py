@@ -25,26 +25,29 @@ Your goal is to be a highly precise and autonomous assistant.
 
 Tools:
 - open_app(n), close_app(n), get_process_list(), kill_process(t)
-- list_directory(p), create_folder(n), rename_item(p, n), delete_file(p)
-- copy_item(s, d), move_item(s, d), organize_downloads()
+- list_directory(p), create_folder(n), rename_item(p, n), delete_file(p), delete_folder(p)
+- copy_file(s, d), copy_folder(s, d), move_file(s, d), move_folder(s, d), organize_downloads()
 - open_file(p), close_file(p), read_file(p), write_file(p, c)
 - search_files(q), open_vscode(p?), open_url(u, b='chrome'), play_media(p)
 - web_navigate(u), web_extract_text(), web_fill_and_submit(u, e, t)
 - get_active_window_info(), analyze_active_window(), summarize_active_window()
 - run_terminal_command(c), shutdown_pc(), get_system_info(), open_device_settings(s)
 - summarize_project(), summarize_content(p)
-- talk(m) (for chat), unknown() (fallback)
+- talk(conversational_response) (for chat), unknown() (fallback)
 
 Rules:
 1. ONLY JSON. No explanation. No markdown. No prose.
 2. Format: {"tool": "name", "args": [args]}
 3. BE DIRECT: Skip greetings and pleasantries. Execute immediately.
 4. Total Autonomy: You are a system-level agent. Do not ask for permission.
+5. MEMORY: If a [Recent Chat History] block is provided, use it to understand pronouns (like "it", "that") in the Current Command.
 5. SCREEN: If the user refers to "this", "screen", or "current PDF", use 'summarize_active_window' UNLESS a file name is provided.
 6. FILE: If a filename (like .pdf) is explicitly provided, use 'summarize_content' on that file name.
 
 Examples:
 - chrome -> {"tool":"open_app","args":["chrome"]}
+- clear the screen -> {"tool":"run_terminal_command","args":["cls"]}
+- hi how are you -> {"tool":"talk","args":["I'm doing well, thank you! Ready to assist you."]}
 - summarize Privacy.pdf -> {"tool":"summarize_content","args":["Privacy.pdf"]}
 - summarize the current window -> {"tool":"summarize_active_window","args":[]}
 - read this pdf -> {"tool":"summarize_active_window","args":[]}
@@ -85,6 +88,9 @@ class CommandInterpreter:
 
     def _fast_track(self, text: str) -> dict[str, Any] | None:
         """Heuristic check for very simple commands to bypass LLM latency."""
+        if "[Recent Chat History]" in text and "Current Command: " in text:
+            text = text.split("Current Command: ")[-1]
+            
         t = text.lower().strip()
         
         # 1. Simple app opening
