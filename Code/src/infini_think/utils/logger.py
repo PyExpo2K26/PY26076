@@ -78,14 +78,15 @@ def _configure() -> None:
     root.setLevel(level)
 
     # --- Console handler ---------------------------------------------------
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    # Only colourise if the terminal supports it
-    if sys.stdout.isatty():
-        console_handler.setFormatter(_ColourFormatter())
-    else:
-        console_handler.setFormatter(_PlainFormatter())
-    root.addHandler(console_handler)
+    if sys.stdout is not None:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(level)
+        # Only colourise if the terminal supports it
+        if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+            console_handler.setFormatter(_ColourFormatter())
+        else:
+            console_handler.setFormatter(_PlainFormatter())
+        root.addHandler(console_handler)
 
     # --- Rotating file handler ---------------------------------------------
     if settings.log_to_file:

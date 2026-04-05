@@ -220,10 +220,9 @@ class MainWindow(QMainWindow):
             screen.height()
         )
 
-    def toggle_visibility(self) -> None:
-        """Toggle the sidebar visibility with a slide animation."""
+    def _auto_hide(self) -> None:
+        """Slide out the sidebar if visible."""
         screen = self.screen().geometry()
-        target_x = screen.width() - _SIDEBAR_WIDTH
         hidden_x = screen.width()
 
         if self.isVisible() and self.x() < hidden_x:
@@ -235,6 +234,16 @@ class MainWindow(QMainWindow):
             self._anim.setEasingCurve(QEasingCurve.Type.InCubic)
             self._anim.finished.connect(self.hide)
             self._anim.start()
+
+    def toggle_visibility(self) -> None:
+        """Toggle the sidebar visibility with a slide animation."""
+        screen = self.screen().geometry()
+        target_x = screen.width() - _SIDEBAR_WIDTH
+        hidden_x = screen.width()
+
+        if self.isVisible() and self.x() < hidden_x:
+            # Slide Out
+            self._auto_hide()
             log.info("Sidebar sliding out")
         else:
             # Slide In
@@ -250,6 +259,14 @@ class MainWindow(QMainWindow):
             self._anim.setEasingCurve(QEasingCurve.Type.OutBack)
             self._anim.start()
             log.info("Sidebar sliding in")
+
+    def changeEvent(self, event) -> None:
+        """Hide the sidebar when it loses window focus."""
+        from PySide6.QtCore import QEvent
+        if event.type() == QEvent.Type.ActivationChange:
+            if not self.isActiveWindow() and self.isVisible():
+                self._auto_hide()
+        super().changeEvent(event)
 
     def _build_header(self) -> QWidget:
         """Return the styled header bar widget with theme toggle."""

@@ -107,8 +107,14 @@ def _launch_gui() -> None:
     _apply_dark_palette(app)
 
     # Path to the agent icon
-    import infini_think
-    package_root = Path(infini_think.__file__).parent
+    if getattr(sys, 'frozen', False):
+        # Running as compiled application
+        package_root = Path(sys._MEIPASS) / "infini_think"
+    else:
+        # Running from source
+        import infini_think
+        package_root = Path(infini_think.__file__).parent
+        
     icon_path = str(package_root / "assets" / "infini_think_icon.png")
 
     sidebar = MainWindow()
