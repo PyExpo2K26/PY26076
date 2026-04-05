@@ -11,32 +11,32 @@ a single responsibility and communicates only with adjacent layers.
 
 ```
 ┌─────────────────────────────────────────────┐
-│           User Interface Layer              │
+│           User Interface Layer               │
 │  GUI (PySide6) │ Voice (STT/TTS) │ CLI REPL │
 └────────────────────┬────────────────────────┘
                      │ user_input: str
                      ▼
 ┌─────────────────────────────────────────────┐
-│           AI Interpretation Layer           │
+│           AI Interpretation Layer            │
 │  CommandInterpreter → LLM → JSON command    │
 └────────────────────┬────────────────────────┘
                      │ {"tool":"…","args":[…]}
                      ▼
 ┌─────────────────────────────────────────────┐
-│           Task Planning Layer               │
+│           Task Planning Layer                │
 │  TaskPlanner → multi-step plan list         │
 └────────────────────┬────────────────────────┘
                      │ [cmd1, cmd2, …]
                      ▼
 ┌─────────────────────────────────────────────┐
-│           Execution Layer                   │
+│           Execution Layer                    │
 │  Executor → tool registry dispatch          │
 └────────────────────┬────────────────────────┘
                      │ ExecutionResult[]
                      ▼
 ┌─────────────────────────────────────────────┐
-│               Tool Layer                    │
-│  app_tools │ file_tools │ system_tools      │
+│               Tool Layer                     │
+│  app_tools │ file_tools │ system_tools       │
 └────────────────────┬────────────────────────┘
                      │
                      ▼
@@ -216,4 +216,3 @@ signals clean shutdown.
 | New file category | `tools/file_tools._CATEGORY_MAP` |
 | New interface | Subclass `interfaces.text_interface.BaseInterface` |
 | New settings | `config/settings.py` `Settings` dataclass |
-

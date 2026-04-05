@@ -215,5 +215,3 @@ All settings in `config/settings.py` can be overridden via environment variables
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
-
-<video controls src="Screen Recording 2026-03-19 111224.mp4" title="Title"></video>
